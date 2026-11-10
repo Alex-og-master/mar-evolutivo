@@ -98,6 +98,7 @@ const view=$('#c'),vctx=view.getContext('2d');
 const cv=document.createElement('canvas'),ctx=cv.getContext('2d');
 const WALL=true; // versión para Lively Wallpaper (Windows): siempre en modo fondo, sin interfaz
 if(WALL)document.body.classList.add('wall');
+const NOPANEL=/nopanel/.test(location.hash),NOSAVE=/preview/.test(location.hash);
 const rnd=Math.random,R=(a,b)=>a+rnd()*(b-a),RI=n=>Math.floor(rnd()*n),clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const gauss=()=>(rnd()+rnd()+rnd()-1.5)*1.15,pick=a=>a[RI(a.length)],lerp=(a,b,t)=>a+(b-a)*t;
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
@@ -300,7 +301,7 @@ function spawn(plan,g,spId,gen,x,y,e){
   return c;
 }
 function load(){try{const j=localStorage.getItem(KEY);if(j){st=JSON.parse(j);return true;}}catch(e){}return false;}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(st,(k,v)=>(k==='spr'||k==='sprJ'||k==='sprF'||k==='sprV'||k==='_m'||k==='_tf'||k==='bi')?undefined:v));}catch(e){}}
+function save(){if(NOSAVE)return;try{localStorage.setItem(KEY,JSON.stringify(st,(k,v)=>(k==='spr'||k==='sprJ'||k==='sprF'||k==='sprV'||k==='_m'||k==='_tf'||k==='bi')?undefined:v));}catch(e){}}
 
 /* ================= sprites ================= */
 const hsl=(h,s,l,a)=>a==null?`hsl(${h|0},${(s*100)|0}%,${(clamp(l,0,1)*100)|0}%)`:`hsla(${h|0},${(s*100)|0}%,${(clamp(l,0,1)*100)|0}%,${a})`;
@@ -1575,10 +1576,12 @@ function drawPanel(){
       <div><b>${(sub.dist*2.2/1000).toFixed(1).replace('.',',')} km</b><small>recorridos por el submarino</small></div><div><b>${fmtDur((st.t-st.created)/1000)}</b><small>edad del mar</small></div></div>
       <div class="grp">Biomas · pulsa «Ir» para mandar el submarino</div>${rows}
       <div class="grp">Población</div>${pops}
+      ${window.MarApp?'<div class="row"><button class="btn on" id="ponfondo">🌊 Poner como fondo de pantalla</button></div>':''}
       <div class="grp">Opciones</div>
       <div class="row"><button class="btn ${cfg.hud?'on':''}" id="hudb">HUD y minimapa: ${cfg.hud?'sí':'no'}</button><button class="btn" id="reset">Reiniciar el mar</button></div>
       <p class="note">Modo fondo de pantalla: añade <b>#fondo</b> al final del enlace para esconder el menú (mantén pulsado para abrir este panel). Toca un bicho para escanearlo y pulsa «Seguir» para que el submarino vaya tras él. Toca el minimapa para mandar el submarino a ese punto.</p>`;
     B.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{goBiome(BIOMES[+b.dataset.b]);closePanel();});
+    if($('#ponfondo'))$('#ponfondo').onclick=()=>{try{window.MarApp.ponerFondo();}catch(e){}};
     $('#hudb').onclick=()=>{cfg.hud=!cfg.hud;saveCfg();updHUD();drawPanel();};
     const r=$('#reset');let armed=false;r.onclick=()=>{if(!armed){armed=true;r.textContent='¿Seguro? Otra vez';setTimeout(()=>{armed=false;r.textContent='Reiniciar el mar';},3000);return;}
       try{localStorage.removeItem(KEY);}catch(e){}location.reload();};
@@ -1620,7 +1623,7 @@ $('#menuBtn').addEventListener('click',e=>{e.stopPropagation();openPanel();});
 /* ================= toques ================= */
 let down=null,lpT=null;
 // en modo fondo el ratón no mueve nada: solo mantener pulsado (quieto) abre el panel
-view.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,drag:false};lpT=setTimeout(()=>{if(down&&!down.drag){down=null;openPanel();}},WALL?1000:650);});
+view.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,drag:false};lpT=NOPANEL?null:setTimeout(()=>{if(down&&!down.drag){down=null;openPanel();}},WALL?1000:650);});
 view.addEventListener('pointermove',e=>{if(!down)return;if(!down.drag&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>10){down.drag=true;clearTimeout(lpT);}
   if(down.drag&&!WALL){cam.x-=(e.clientX-down.lx)/S;cam.y-=(e.clientY-down.ly)/S;cam.manual=12;cam.x=clamp(cam.x,W/2,WORLD_W-W/2);cam.y=clamp(cam.y,TY0+H/2,WORLD_H-H/2-2);down.lx=e.clientX;down.ly=e.clientY;}});
 view.addEventListener('pointerup',e=>{clearTimeout(lpT);if(!down)return;const d=down;down=null;if(d.drag||WALL)return;

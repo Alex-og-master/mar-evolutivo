@@ -1,0 +1,41 @@
+name: APK para Android
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Meter el mar dentro de la app
+        run: mkdir -p android/app/src/main/assets && cp index.html android/app/src/main/assets/index.html
+      - name: Compilar
+        working-directory: android
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+      - name: Preparar
+        run: cp android/app/build/outputs/apk/release/app-release.apk mar-evolutivo.apk
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: movil
+          name: Mar evolutivo para Android
+          make_latest: true
+          files: mar-evolutivo.apk
+          body: |
+            Fondo de pantalla animado para Android.
+            Descarga: https://github.com/Alex-og-master/mar-evolutivo/releases/download/movil/mar-evolutivo.apk
+            Ábrelo en el móvil, permite instalar apps de origen desconocido si te lo pide, abre «Mar evolutivo»,
+            mantén pulsado el mar para abrir el panel y pulsa «Poner como fondo de pantalla».

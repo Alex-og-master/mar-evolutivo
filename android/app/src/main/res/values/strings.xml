@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mar evolutivo</string>
+    <string name="desc">Un submarino recorre un mar vivo con ocho biomas donde los bichos evolucionan solos.</string>
+</resources>

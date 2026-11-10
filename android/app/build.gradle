@@ -1,0 +1,32 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'es.proyectillos.marevolutivo'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'es.proyectillos.marevolutivo'
+        minSdk 24
+        targetSdk 34
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+        versionName "1.0." + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+    signingConfigs {
+        // clave fija para que las actualizaciones se instalen encima sin perder el mar
+        mar {
+            storeFile file('mar.keystore')
+            storePassword 'marevolutivo'
+            keyAlias 'mar'
+            keyPassword 'marevolutivo'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.mar }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { checkReleaseBuilds false; abortOnError false }
+}
+
+dependencies { implementation 'androidx.webkit:webkit:1.11.0' }

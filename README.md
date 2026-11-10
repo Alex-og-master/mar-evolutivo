@@ -19,3 +19,12 @@ de tu ciudad y la batería del dispositivo como batería del submarino.
   (lanzador propio con GTK + WebKitGTK, todas las pantallas como panorámica).
 
 Cada dispositivo guarda su propio mar.
+
+## Android (app propia)
+
+Descarga el APK: **https://github.com/Alex-og-master/mar-evolutivo/releases/download/movil/mar-evolutivo.apk**
+
+Se compila solo con GitHub Actions cada vez que cambia algo (`.github/workflows/android.yml`).
+Instálalo, abre «Mar evolutivo», mantén pulsado el mar y pulsa «Poner como fondo de pantalla».
+El código de la app está en `android/` (fondo animado con un WebView dibujado en una pantalla virtual,
+batería real, se pausa cuando no se ve la pantalla de inicio).
