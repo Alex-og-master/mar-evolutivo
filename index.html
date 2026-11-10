@@ -724,7 +724,7 @@ function computeWX(){
   const wind=manual?(cat==='tormenta'?45:cat==='lluvia'?18:8):(wxLive.wind||8);
   const light={despejado:1-cloud*.2,nublado:1-cloud*.38,niebla:.6,lluvia:.55,tormenta:.35,nieve:.6}[cat];
   WX={cat,int,wind:cat==='tormenta'?Math.max(wind,35):wind,temp:manual?(cat==='nieve'?-1:cat==='tormenta'?14:18):wxLive.temp,light,cloud};
-  try{if(sub&&before&&before!==cat){wxMsg={t:performance.now(),txt:`${CATS[cat].t}${cfg.loc&&cfg.mode==='auto'?' en '+cfg.loc.name:''} · ${Math.round(WX.temp)} °C`};sub.peek=55;}}catch(e){}
+  try{if(sub&&before&&before!==cat){wxMsg={t:performance.now(),txt:`${CATS[cat].t}${cfg.loc&&cfg.mode==='auto'?' en '+cfg.loc.name:''} · ${Math.round(WX.temp)} °C`};sub.peek=WALL?18:40;}}catch(e){}
 }
 computeWX();
 /* ---- cielo real: sol, luna y mareas para tu ubicación ---- */
@@ -815,9 +815,11 @@ setInterval(fetchWX,15*60e3);
 let sub=null;const cam={x:0,y:0,manual:0};
 function initSub(){
   const s=st.sub||{x:BI.arrecife.cx,y:60,dist:0};
-  sub={x:s.x,y:s.y,vx:0,vy:0,dir:1,tx:s.x,ty:s.y,state:'obs',ox:s.x,oy:s.y,wait:R(10,30),ping:0,fr:0,follow:null,dist:s.dist||0,poi:null};
+  sub={x:s.x,y:s.y,vx:0,vy:0,dir:1,tx:s.x,ty:s.y,state:'obs',ox:s.x,oy:s.y,wait:R(4,10),ping:0,fr:0,follow:null,dist:s.dist||0,poi:null};
   cam.x=sub.x;cam.y=sub.y;
 }
+// tras un rato sin mirar el fondo, el submarino aparece en otro sitio, como si hubiese seguido explorando
+function subJump(){const p=pickPOI();sub.follow=null;sub.peek=0;sub.peekX=null;sub.x=p.x;sub.y=subSafeY(p.x,p.y);sub.vx=sub.vy=0;sub.tx=sub.ox=sub.x;sub.ty=sub.oy=sub.y;sub.state='obs';sub.wait=R(6,15);sub.poi=p;cam.tx=cam.ty=null;cam.vx=cam.vy=0;cam.x=sub.x;cam.y=sub.y;updateCam(0);}
 function subLimits(x){let m=1e9;for(let k=-40;k<=40;k+=4)m=Math.min(m,floorAt(x+k));return [iceAt(x)?16:seaAt(x)+5,m-16];}
 function subSafeY(x,y){const [a,b]=subLimits(x);return clamp(y,a,b);}
 function pickPOI(){
@@ -835,10 +837,10 @@ function updateSub(dt){
   sub.fr+=dt*(ch?14:low?4:8);
   if(sub.follow){const c=st.cr.find(q=>q.id===sub.follow);if(c){sub.tx=c.x-c.dir*30;sub.ty=c.y-8;if(sub.state==='obs'&&sub.wait<=0&&!sub.userFollow){sub.follow=null;}}else{sub.follow=null;sub.userFollow=false;}}
   if(sub.peek>0){sub.peek-=dt;if(!sub.peekX){sub.peekX=sub.x;}sub.tx=sub.peekX+Math.sin(Date.now()/6000)*20;sub.ty=iceAt(sub.x)?20:10;sub.state='obs';sub.wait=Math.max(sub.wait,5);sub.ox=sub.tx;sub.oy=sub.ty;if(sub.peek<=0)sub.peekX=null;}
-  if(low){sub.ty=8;sub.state='go';}
+  if(low&&b<.08){sub.ty=8;sub.state='go';}else if(low)sub.ty=Math.min(sub.ty,70);
   if(sub.state==='obs'){sub.wait-=dt;if(!sub.follow){sub.tx=sub.ox+Math.sin(Date.now()/9000)*24;sub.ty=sub.oy+Math.sin(Date.now()/7000)*8;}
     if(sub.wait<=0&&!sub.userFollow){const p=pickPOI();sub.poi=p;sub.tx=p.x;sub.ty=p.y;sub.follow=p.follow||null;sub.state='go';}}
-  else if(Math.hypot(sub.tx-sub.x,sub.ty-sub.y)<10&&!low){sub.state='obs';sub.wait=R(35,100);sub.ox=sub.x;sub.oy=sub.y;}
+  else if(Math.hypot(sub.tx-sub.x,sub.ty-sub.y)<10&&!low){sub.state='obs';sub.wait=WALL?R(14,35):R(35,100);sub.ox=sub.x;sub.oy=sub.y;}
   const spd=(sub.state==='go'?10:4)*(ch?1.7:low?.5:1);
   const ty=subSafeY(sub.tx,sub.ty),dx=sub.tx-sub.x,dy=ty-sub.y,d=Math.hypot(dx,dy)||1;
   const ax=dx/d*spd*Math.min(1,d/20),ay=dy/d*spd*.7*Math.min(1,d/20);
@@ -1688,7 +1690,7 @@ season(Date.now());buildPlants();buildTerrain();
 if(fresh)seedWorld();else{st.cr.forEach(c=>{c.dead=false;c.atDen=false;c.den=null;});}
 initSub();
 if(!fresh)queueCatchUp(st.t,Date.now());
-let PAUSED=false;window.__pause=b=>{const was=PAUSED;PAUSED=!!b;if(PAUSED&&!was){DG.pauses++;writeDiag();}if(!PAUSED)lastFrame=0;else save();};
+let PAUSED=false,pausedAt=0;window.__pause=b=>{const was=PAUSED;PAUSED=!!b;if(PAUSED&&!was){DG.pauses++;pausedAt=Date.now();writeDiag();}if(!PAUSED){lastFrame=0;if(was&&WALL&&Date.now()-pausedAt>45000)try{subJump();}catch(e){}}else save();};
 // diagnóstico: el fondo apunta cómo va y la app lo enseña en la pestaña Estado
 const DG={since:Date.now(),frames:0,ms:0,vis:0,pau:0,pauses:0,err:0,errMsg:'',last:Date.now()};
 addEventListener('error',e=>{DG.err++;DG.errMsg=String(e.message||e).slice(0,140);});
