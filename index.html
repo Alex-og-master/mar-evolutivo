@@ -7,7 +7,7 @@
 <title>Acuario evolutivo</title>
 <style>
 html,body{margin:0;height:100%;background:#020812;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-canvas#c{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelated;image-rendering:crisp-edges}
+canvas#c{position:fixed;inset:0;width:100vw;height:100vh;transform-origin:0 0;will-change:transform;image-rendering:pixelated;image-rendering:crisp-edges}
 *{box-sizing:border-box}
 .px{font-family:ui-monospace,"Courier New",monospace;color:#e8f4ef;letter-spacing:.02em}
 #hud{position:fixed;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 10px);font-size:12px;line-height:1.5;text-shadow:1px 1px 0 #000,0 0 6px rgba(0,0,0,.6);pointer-events:none;z-index:3}
@@ -16,6 +16,10 @@ canvas#c{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelat
 #hud .bat i{position:absolute;left:1px;top:1px;bottom:1px;background:#7fe0c8}
 #hud .bat:after{content:"";position:absolute;right:-3px;top:2px;width:2px;height:3px;background:#9fd}
 #map{position:fixed;left:calc(env(safe-area-inset-left) + 12px);bottom:calc(env(safe-area-inset-bottom) + 12px);width:min(46vw,260px);height:min(13vw,64px);border:1px solid rgba(127,224,200,.45);background:rgba(2,12,22,.55);image-rendering:pixelated;z-index:3;cursor:pointer}
+#bio{position:fixed;left:0;right:0;top:84%;text-align:center;pointer-events:none;opacity:0;transition:opacity 1.2s;text-shadow:1px 1px 0 #000;z-index:2}
+#bio b{display:block;font-weight:normal;font-size:13px;letter-spacing:.45em;text-transform:uppercase}
+#bio span{font-size:10px;opacity:.8}
+#wxm{position:fixed;left:0;right:0;top:11%;text-align:center;pointer-events:none;opacity:0;transition:opacity 1.2s;font-size:12px;text-shadow:1px 1px 0 #000;z-index:2}
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 64px);width:min(86vw,370px);transform:translate(-50%,-14px);opacity:0;pointer-events:none;transition:opacity .6s,transform .6s;background:rgba(3,14,26,.86);border:2px solid #7fe0c8;box-shadow:4px 4px 0 rgba(0,0,0,.45);padding:12px 14px;font-size:13px;line-height:1.45;z-index:5}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 #toast h3{margin:0 0 6px;font-size:12px;color:#7fe0c8;text-transform:uppercase;letter-spacing:.12em}
@@ -75,6 +79,8 @@ p.note{font-size:12px;opacity:.75;line-height:1.5}
 <canvas id="c"></canvas>
 <div id="hud" class="px"></div>
 <canvas id="map"></canvas>
+<div id="bio" class="px"><b></b><span></span></div>
+<div id="wxm" class="px"></div>
 <div id="ff" class="px">⏩ poniéndose al día…</div>
 <div id="toast" class="px"></div>
 <div id="scan" class="px"></div>
@@ -97,8 +103,11 @@ p.note{font-size:12px;opacity:.75;line-height:1.5}
 
 /* ================= utilidades ================= */
 const $=s=>document.querySelector(s);
+// En Chromium (Android, Windows, navegador) el escalado lo hace la tarjeta gráfica vía CSS: se dibuja a baja resolución
+// y el lienzo se estira con image-rendering:pixelated. En WebKitGTK (Linux) se escala a mano para que salga nítido.
+const CSSMODE=!!window.chrome||/Android/.test(navigator.userAgent);
 const view=$('#c'),vctx=view.getContext('2d');
-const cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+const cv=CSSMODE?view:document.createElement('canvas'),ctx=CSSMODE?vctx:cv.getContext('2d');
 const WALL=/fondo|wallpaper/.test(location.search+location.hash);
 if(WALL)document.body.classList.add('wall');
 if(/ajustes/.test(location.hash))document.body.classList.add('app');
@@ -305,7 +314,7 @@ function spawn(plan,g,spId,gen,x,y,e){
   return c;
 }
 function load(){try{const j=localStorage.getItem(KEY);if(j){st=JSON.parse(j);return true;}}catch(e){}return false;}
-function save(){if(NOSAVE)return;try{localStorage.setItem(KEY,JSON.stringify(st,(k,v)=>(k==='spr'||k==='sprJ'||k==='sprF'||k==='sprV'||k==='_m'||k==='_tf'||k==='bi')?undefined:v));}catch(e){}}
+function save(){if(NOSAVE)return;try{localStorage.setItem(KEY,JSON.stringify(st,(k,v)=>(k==='spr'||k==='sprJ'||k==='sprF'||k==='sprV'||k==='_m'||k==='_tf'||k==='bi'||k==='_ck')?undefined:v));}catch(e){}}
 
 /* ================= sprites ================= */
 const hsl=(h,s,l,a)=>a==null?`hsl(${h|0},${(s*100)|0}%,${(clamp(l,0,1)*100)|0}%)`:`hsla(${h|0},${(s*100)|0}%,${(clamp(l,0,1)*100)|0}%,${a})`;
@@ -847,13 +856,13 @@ function updateCam(dt){
   if(cam.manual>0){cam.manual-=dt;cam.vx=cam.vy=0;}
   else{
     let fl=0;for(let k=-W*.5;k<=W*.5;k+=8)fl+=floorAt(sub.x+k);fl/=Math.floor(W/8)+1;
-    const wantX=sub.x+sub.look*W*.12,wantY=Math.max(Math.min(sub.y+(H>W?H*.12:0),fl+Math.min(60,H*.2)-H/2),sub.y-H*.38);
+    const wantX=sub.x+sub.look*W*.12,wantY=Math.max(Math.min(sub.y+(H>W?H*.12:0),fl+Math.min(90,H*.28)-H/2),sub.y-H*.38);
     cam.tx=cam.tx==null?wantX:lerp(cam.tx,wantX,Math.min(1,dt*.6));cam.ty=cam.ty==null?wantY:lerp(cam.ty,wantY,Math.min(1,dt*.4));
     const k=1.6,c=2*Math.sqrt(k);cam.vx=(cam.vx||0)+((cam.tx-cam.x)*k-(cam.vx||0)*c)*dt;cam.vy=(cam.vy||0)+((cam.ty-cam.y)*k-(cam.vy||0)*c)*dt;
     const mv=Math.hypot(cam.vx,cam.vy),mx=30;if(mv>mx){cam.vx*=mx/mv;cam.vy*=mx/mv;}
     cam.x+=cam.vx*dt;cam.y+=cam.vy*dt;
   }
-  cam.x=clamp(cam.x,W/2,WORLD_W-W/2);cam.y=clamp(cam.y,TY0+H/2,WORLD_H-H/2-2);
+  cam.x=clamp(cam.x,W/2,WORLD_W-W/2);cam.y=clamp(cam.y,Math.min(TY0+H/2,40-H/2),WORLD_H-H/2-2);
 }
 
 /* ================= fauna nativa por bioma ================= */
@@ -1027,7 +1036,8 @@ function step(dt,t){
   const born=[],bornCnt={};
   for(let i=0;i<n;i++){
     const c=cr[i];if(c.dead)continue;const g=c.g,P=PLANS[c.plan];
-    c.age+=dt;c.e-=cost(c)*dt;if(c.cd>0)c.cd-=dt;if(c.rc>0)c.rc-=dt;if(c.lunge>0)c.lunge-=dt;if(c.jet>0)c.jet-=dt;
+    if(c._ck==null||(STEP_I+c.id)%4===0||!LIVE)c._ck=cost(c);
+    c.age+=dt;c.e-=c._ck*dt;if(c.cd>0)c.cd-=dt;if(c.rc>0)c.rc-=dt;if(c.lunge>0)c.lunge-=dt;if(c.jet>0)c.jet-=dt;
     const em=emax(c),hungry=c.e<em*.75,lt=lightAt(c.y)*dl;
     let sense=((lt>.25?48:14+g.glow*50*(1-lt)+lt*34)+g.size*2+(g.depth>.6?14:0))*(storm&&c.y<200?.6:WX.cat==='niebla'&&c.y<80?.85:1);
     if(c.plan==='angler')sense=26;
@@ -1363,7 +1373,7 @@ function render(now,fdt){
     skyB=mix(skyB,[250,150,100],clamp(dusk*.7,0,.8));skyT=mix(skyT,[120,80,140],clamp(dusk*.4,0,.5));
     const gy_=storm?[50,54,64]:[130,138,148];skyT=mix(skyT,mix([20,22,30],gy_,dl),grey*.85);skyB=mix(skyB,mix([28,30,38],gy_.map(v=>v+25),dl),grey*.85);
     const g0=ctx.createLinearGradient(0,0,0,surfY);g0.addColorStop(0,rgb(skyT));g0.addColorStop(1,rgb(skyB));ctx.fillStyle=g0;ctx.fillRect(0,0,W,surfY+1);
-    if(night>.4&&grey<.6){ctx.fillStyle=`rgba(255,255,240,${(night-.4)*1.2*(1-grey)*(1-moonL*.6)})`;for(let i=0;i<50;i++){const sx=((i*73.13-ox*.1)%W+W)%W,syy=(i*31.7)%Math.max(4,surfY-3);if((i+Math.floor(T*.7))%9)ctx.fillRect(sx|0,syy|0,1,1);}}
+    if(night>.4&&grey<.6){ctx.fillStyle=`rgba(255,255,240,${(night-.4)*1.2*(1-grey)*(1-moonL*.6)})`;for(let i=0;i<50;i++){const sx=((hash(i,7)*W*1.7-ox*.1)%W+W)%W,syy=hash(i,13)*Math.max(4,surfY-3);if((i+Math.floor(T*.7))%9)ctx.fillRect(sx|0,syy|0,1,1);}}
     const bodyA=1-grey*.85,arc=Math.min(surfY*.8,70),skyX=H_=>Math.round(W*(.5+clamp(H_/200,-.47,.47))),skyY=alt=>Math.round(surfY-3-clamp(alt/60,0,1)*arc);
     if(A.alt>-3){ctx.globalAlpha=bodyA;const sx=skyX(A.H),syy=skyY(A.alt);ctx.fillStyle=dusk>.3?'#ffb86b':'#fff4c2';for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++)if(a*a+b*b<=9)ctx.fillRect(sx+a,syy+b,1,1);ctx.globalAlpha=1;}
     if(A.altM>-2){const mx=skyX(A.HM),my=skyY(A.altM),r=3,th=Math.cos(2*Math.PI*A.age/SYN),wax=A.age<SYN/2;ctx.globalAlpha=bodyA*(.55+.45*night);
@@ -1643,7 +1653,7 @@ let down=null,lpT=null;
 // en modo fondo el ratón no mueve nada: solo mantener pulsado (quieto) abre el panel
 view.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,drag:false};lpT=NOPANEL?null:setTimeout(()=>{if(down&&!down.drag){down=null;openPanel();}},WALL?1000:650);});
 view.addEventListener('pointermove',e=>{if(!down)return;if(!down.drag&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>10){down.drag=true;clearTimeout(lpT);}
-  if(down.drag&&!WALL){cam.x-=(e.clientX-down.lx)/S;cam.y-=(e.clientY-down.ly)/S;cam.manual=12;cam.x=clamp(cam.x,W/2,WORLD_W-W/2);cam.y=clamp(cam.y,TY0+H/2,WORLD_H-H/2-2);down.lx=e.clientX;down.ly=e.clientY;}});
+  if(down.drag&&!WALL){cam.x-=(e.clientX-down.lx)/S;cam.y-=(e.clientY-down.ly)/S;cam.manual=12;cam.x=clamp(cam.x,W/2,WORLD_W-W/2);cam.y=clamp(cam.y,Math.min(TY0+H/2,40-H/2),WORLD_H-H/2-2);down.lx=e.clientX;down.ly=e.clientY;}});
 view.addEventListener('pointerup',e=>{clearTimeout(lpT);if(!down)return;const d=down;down=null;if(d.drag||WALL)return;
   const wx=cam.x-W/2+MRG+e.clientX/S,wy=cam.y-H/2+MRG+e.clientY/S;
   let best=null,bd=9;for(const c of st.cr){const dd=Math.hypot(c.x-wx,c.y-wy)-c.g.size*.5;if(dd<bd){bd=dd;best=c;}}
@@ -1655,20 +1665,21 @@ addEventListener('wheel',e=>{if(WALL)return;cam.x=clamp(cam.x+(e.deltaX||e.delta
 
 /* ================= arranque ================= */
 let DPR=1;
-let bioT=0,bioN=-1;
-function blit(){const k=S*DPR;vctx.imageSmoothingEnabled=false;vctx.drawImage(cv,0,0,W,H,Math.round((RX-(cam.x-W/2+MRG))*k),Math.round((RY-(cam.y-H/2+MRG))*k),W*k,H*k);
-  // nombre del bioma al entrar en uno nuevo (sin interfaz)
-  const bi=biomeIdx(sub.x);if(bi!==bioN){if(bioN>=0)bioT=performance.now();bioN=bi;}
-  const a=(performance.now()-bioT)/1000;if(a<6){const al=Math.min(1,a/1,(6-a)/1.5)*.6,b=BIOMES[bi],fs=Math.round(13*DPR);
-    vctx.save();vctx.globalAlpha=al;vctx.font=`${fs}px ui-monospace,"Courier New",monospace`;vctx.textAlign='center';vctx.fillStyle='rgba(0,0,0,.6)';
-    const tx=b.nm.toUpperCase().split('').join(' '),y=view.height*.86;vctx.fillText(tx,view.width/2+DPR,y+DPR);vctx.fillStyle='#e8f4ef';vctx.fillText(tx,view.width/2,y);
-    vctx.font=`${Math.round(10*DPR)}px ui-monospace,"Courier New",monospace`;vctx.fillStyle='rgba(232,244,239,.8)';vctx.fillText(`${Math.round(b.floor*2.2)} m de fondo · ${toC(b.temp)} °C`,view.width/2,y+fs*1.4);vctx.restore();}
-  if(wxMsg){const a2=(performance.now()-wxMsg.t)/1000;if(a2>8)wxMsg=null;else{const al=Math.min(1,a2,(8-a2)/1.5)*.65,fs=Math.round(12*DPR);vctx.save();vctx.globalAlpha=al;vctx.font=`${fs}px ui-monospace,"Courier New",monospace`;vctx.textAlign='center';
-    const tx=`${CATS[WX.cat].i}  ${wxMsg.txt}`,y=view.height*.12;vctx.fillStyle='rgba(0,0,0,.6)';vctx.fillText(tx,view.width/2+DPR,y+DPR);vctx.fillStyle='#e8f4ef';vctx.fillText(tx,view.width/2,y);vctx.restore();}}}
+let bioN=-1,bioTO=null,wxShown=null;
+function blit(){
+  if(CSSMODE){view.style.transform=`translate3d(${((RX-(cam.x-W/2+MRG))*S).toFixed(2)}px,${((RY-(cam.y-H/2+MRG))*S).toFixed(2)}px,0)`;}
+  else{const k=S*DPR;vctx.imageSmoothingEnabled=false;vctx.drawImage(cv,0,0,W,H,Math.round((RX-(cam.x-W/2+MRG))*k),Math.round((RY-(cam.y-H/2+MRG))*k),W*k,H*k);}
+  // nombre del bioma al entrar en uno nuevo y aviso del tiempo (texto normal, encima del mar)
+  const bi=biomeIdx(sub.x);if(bi!==bioN){const first=bioN<0;bioN=bi;if(!first){const b=BIOMES[bi],el=$('#bio');el.querySelector('b').textContent=b.nm;el.querySelector('span').textContent=`${Math.round(b.floor*2.2)} m de fondo · ${toC(b.temp)} °C`;el.style.opacity=.75;clearTimeout(bioTO);bioTO=setTimeout(()=>el.style.opacity=0,4500);}}
+  if(wxMsg&&wxShown!==wxMsg){wxShown=wxMsg;const el=$('#wxm');el.textContent=`${CATS[WX.cat].i}  ${wxMsg.txt}`;el.style.opacity=.8;setTimeout(()=>el.style.opacity=0,6500);}
+}
 function resize(){
-  S=clamp(Math.round(Math.min(innerWidth,innerHeight)/250),2,6);
+  // en vertical (móvil) píxeles más grandes: se ve mejor en pantalla pequeña y gasta menos
+  S=clamp(Math.round(Math.min(innerWidth,innerHeight)/(innerHeight>innerWidth*1.3?150:250)),2,6);
   W=Math.ceil(innerWidth/S)+2*MRG;H=Math.ceil(innerHeight/S)+2*MRG;cv.width=W;cv.height=H;ctx.imageSmoothingEnabled=false;snowP=[];
-  DPR=window.devicePixelRatio||1;view.width=Math.round(innerWidth*DPR);view.height=Math.round(innerHeight*DPR);vctx.imageSmoothingEnabled=false;
+  DPR=window.devicePixelRatio||1;
+  if(CSSMODE){view.style.width=W*S+'px';view.style.height=H*S+'px';view.style.right='auto';view.style.bottom='auto';}
+  else{view.width=Math.round(innerWidth*DPR);view.height=Math.round(innerHeight*DPR);vctx.imageSmoothingEnabled=false;}
 }
 resize();addEventListener('resize',resize);
 const fresh=!load();
@@ -1694,7 +1705,8 @@ setInterval(writeDiag,30000);
 let lastBlit=0;let simNow=Date.now(),lastSave=0,lastFrame=0,lastHud=0,lastMap=0;
 function loop(ts){
   requestAnimationFrame(loop);
-  const minGap=charging()?33:(bat.real&&bat.level<.2)?66:bat.real?42:33;
+  const MOB=/Android/.test(navigator.userAgent);
+  const minGap=charging()?(MOB?40:33):(bat.real&&bat.level<.2)?66:bat.real?(MOB?50:42):33;
   if(PAUSED)return;
   if(ts-lastFrame<minGap-2){
     // fotograma intermedio: solo la cámara (barato) para que el desplazamiento vaya fluido

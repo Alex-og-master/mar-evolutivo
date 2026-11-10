@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#04101e">
+<title>Acuario evolutivo</title>
+<style>
+html,body{margin:0;height:100%;background:#020812;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+canvas#c{position:fixed;inset:0;width:100vw;height:100vh;transform-origin:0 0;will-change:transform;image-rendering:pixelated;image-rendering:crisp-edges}
+*{box-sizing:border-box}
+.px{font-family:ui-monospace,"Courier New",monospace;color:#e8f4ef;letter-spacing:.02em}
+#hud{position:fixed;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 10px);font-size:12px;line-height:1.5;text-shadow:1px 1px 0 #000,0 0 6px rgba(0,0,0,.6);pointer-events:none;z-index:3}
+#hud b{color:#7fe0c8;font-weight:normal;letter-spacing:.1em;text-transform:uppercase}
+#hud .bat{display:inline-block;width:22px;height:9px;border:1px solid #9fd;vertical-align:-1px;position:relative;margin-right:4px}
+#hud .bat i{position:absolute;left:1px;top:1px;bottom:1px;background:#7fe0c8}
+#hud .bat:after{content:"";position:absolute;right:-3px;top:2px;width:2px;height:3px;background:#9fd}
+#map{position:fixed;left:calc(env(safe-area-inset-left) + 12px);bottom:calc(env(safe-area-inset-bottom) + 12px);width:min(46vw,260px);height:min(13vw,64px);border:1px solid rgba(127,224,200,.45);background:rgba(2,12,22,.55);image-rendering:pixelated;z-index:3;cursor:pointer}
+#bio{position:fixed;left:0;right:0;top:84%;text-align:center;pointer-events:none;opacity:0;transition:opacity 1.2s;text-shadow:1px 1px 0 #000;z-index:2}
+#bio b{display:block;font-weight:normal;font-size:13px;letter-spacing:.45em;text-transform:uppercase}
+#bio span{font-size:10px;opacity:.8}
+#wxm{position:fixed;left:0;right:0;top:11%;text-align:center;pointer-events:none;opacity:0;transition:opacity 1.2s;font-size:12px;text-shadow:1px 1px 0 #000;z-index:2}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 64px);width:min(86vw,370px);transform:translate(-50%,-14px);opacity:0;pointer-events:none;transition:opacity .6s,transform .6s;background:rgba(3,14,26,.86);border:2px solid #7fe0c8;box-shadow:4px 4px 0 rgba(0,0,0,.45);padding:12px 14px;font-size:13px;line-height:1.45;z-index:5}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast h3{margin:0 0 6px;font-size:12px;color:#7fe0c8;text-transform:uppercase;letter-spacing:.12em}
+#toast .l{margin:2px 0}#toast .n{color:#ffd77a}#toast .x{color:#ff8f8f}#toast .a{color:#9fd8ff}
+#scan{position:fixed;right:calc(env(safe-area-inset-right) + 12px);bottom:calc(env(safe-area-inset-bottom) + 12px);width:min(70vw,250px);background:rgba(3,14,26,.88);border:2px solid #7fe0c8;padding:10px 12px;font-size:12px;line-height:1.45;z-index:6;display:none}
+#scan.on{display:block}
+#scan .hd{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+#scan img{width:44px;max-height:34px;object-fit:contain;image-rendering:pixelated}
+#scan b{color:#ffe9a8;display:block}
+#scan .k{opacity:.7}
+#scan button{margin-top:8px;width:100%}
+#hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 90px);left:0;right:0;text-align:center;font-size:12px;opacity:.8;pointer-events:none;transition:opacity 1s;text-shadow:1px 1px 0 #000;z-index:3}
+#ff{position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:50%;transform:translateX(-50%);font-size:12px;color:#7fe0c8;opacity:0;transition:opacity .4s;text-shadow:1px 1px 0 #000;z-index:4}
+#hud,#map{display:none!important}
+body.wall #toast,body.wall #scan,body.wall #hint,body.wall #ff,body.wall #menuBtn{display:none!important}
+body.app #hint,body.app #menuBtn,body.app #ff{display:none!important}
+#menuBtn{position:fixed;top:calc(env(safe-area-inset-top) + 6px);right:8px;width:38px;height:38px;border:0;background:transparent;color:#9fd;font-size:20px;opacity:.5;z-index:4}
+#panel{position:fixed;inset:0;background:rgba(2,9,18,.94);z-index:10;display:none;flex-direction:column;padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 12px)}
+#panel.on{display:flex}
+#panel>*{width:100%;max-width:720px;margin-left:auto;margin-right:auto}
+#tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+#tabs button,.btn{flex:1;font:inherit;font-size:12px;color:#cfe;background:#0b2233;border:2px solid #1f4b5e;padding:8px 4px;text-transform:uppercase;letter-spacing:.08em;cursor:pointer}
+#tabs button.on{border-color:#7fe0c8;color:#7fe0c8;background:#0e2e3a}
+#close{flex:0 0 42px!important}
+#body{flex:1;overflow:auto;font-size:13px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.grp{margin:14px 0 4px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7fe0c8}
+.sp{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px dashed #163244;white-space:nowrap}
+.sp img{width:34px;max-height:26px;object-fit:contain;image-rendering:pixelated;flex:0 0 auto}
+.sp .t{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.sp b{font-size:12px;color:#ffe9a8;overflow:hidden;text-overflow:ellipsis}
+.sp span{font-size:11px;opacity:.75;overflow:hidden;text-overflow:ellipsis}
+.sp em{margin-left:auto;font-style:normal;font-size:11px;color:#7fe0c8;padding-left:6px}
+.sp.ext{opacity:.5}.sp.ext em{color:#ff9d9d}
+.br{color:#2d6075;flex:0 0 auto}
+.lg{padding:5px 0;border-bottom:1px dashed #163244;line-height:1.4}
+.lg time{display:block;font-size:10px;opacity:.55}
+.st{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.st div{background:#0b2233;border:2px solid #1f4b5e;padding:10px}
+.st b{display:block;font-size:20px;color:#ffe9a8}
+.st small{opacity:.7;font-size:11px}
+.bio{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #163244;font-size:12px}
+.bio i{width:12px;height:12px;flex:0 0 12px}
+.bio span{flex:1}
+.bio button{flex:0 0 64px;padding:5px 2px}
+.pop{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px}
+.pop img{width:30px;max-height:22px;object-fit:contain;image-rendering:pixelated}
+.pop .bar{flex:1;height:8px;background:#0b2233;border:1px solid #1f4b5e}
+.pop .bar i{display:block;height:100%;background:#7fe0c8}
+.pop span{width:120px}
+.row{display:flex;gap:6px;margin:8px 0}.row input{flex:1;font:inherit;font-size:13px;background:#06141f;color:#e8f4ef;border:2px solid #1f4b5e;padding:8px}
+.modes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}.modes button.on,.btn.on{border-color:#ffd77a;color:#ffd77a}
+.wx{font-size:15px;color:#ffe9a8;margin:6px 0}
+p.note{font-size:12px;opacity:.75;line-height:1.5}
+</style>
+</head>
+<body class="px">
+<canvas id="c"></canvas>
+<div id="hud" class="px"></div>
+<canvas id="map"></canvas>
+<div id="bio" class="px"><b></b><span></span></div>
+<div id="wxm" class="px"></div>
+<div id="ff" class="px">⏩ poniéndose al día…</div>
+<div id="toast" class="px"></div>
+<div id="scan" class="px"></div>
+<div id="hint" class="px">clic en un bicho para escanearlo · clic en el agua para soltar comida · arrastra para mover la cámara · mantén pulsado para el panel</div>
+<button id="menuBtn" class="px" aria-label="menú">☰</button>
+<div id="panel" class="px">
+  <div id="tabs">
+    <button data-t="mapa" class="on">Mapa</button>
+    <button data-t="arbol">Árbol</button>
+    <button data-t="diario">Diario</button>
+    <button data-t="tiempo">Tiempo</button>
+    <button data-t="estado">Estado</button>
+    <button id="close">✕</button>
+  </div>
+  <div id="body"></div>
+</div>
+<script>
+(()=>{
+"use strict";
+
+/* ================= utilidades ================= */
+const $=s=>document.querySelector(s);
+// En Chromium (Android, Windows, navegador) el escalado lo hace la tarjeta gráfica vía CSS: se dibuja a baja resolución
+// y el lienzo se estira con image-rendering:pixelated. En WebKitGTK (Linux) se escala a mano para que salga nítido.
+const CSSMODE=!!window.chrome||/Android/.test(navigator.userAgent);
+const view=$('#c'),vctx=view.getContext('2d');
+const cv=CSSMODE?view:document.createElement('canvas'),ctx=CSSMODE?vctx:cv.getContext('2d');
+const WALL=true;
+if(WALL)document.body.classList.add('wall');
+if(/ajustes/.test(location.hash))document.body.classList.add('app');
+const NOPANEL=/nopanel/.test(location.hash),NOSAVE=/preview/.test(location.hash);
+const rnd=Math.random,R=(a,b)=>a+rnd()*(b-a),RI=n=>Math.floor(rnd()*n),clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const gauss=()=>(rnd()+rnd()+rnd()-1.5)*1.15,pick=a=>a[RI(a.length)],lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
+let W=320,H=200,S=3;
+
+/* ================= el mundo ================= */
+const BIOMES=[
+  {id:'manglar',  nm:'Manglar',             w:380,floor:62, temp:.10,tint:[64,118,86], deep:[10,30,24], prod:1.3,col:'#5fae6e'},
+  {id:'arrecife', nm:'Arrecife de coral',   w:460,floor:140,temp:.02,tint:[44,176,196],deep:[8,40,70],  prod:1.0,col:'#ff8a6b'},
+  {id:'posidonia',nm:'Pradera de posidonia',w:400,floor:112,temp:.30,tint:[48,150,176],deep:[8,36,64],  prod:1.0,col:'#7fcf7f'},
+  {id:'naufragio',nm:'Naufragio',           w:360,floor:230,temp:.42,tint:[40,120,150],deep:[6,26,50],  prod:.8, col:'#c9a36b'},
+  {id:'kelp',     nm:'Bosque de kelp',      w:460,floor:280,temp:.62,tint:[40,122,118],deep:[5,28,34],  prod:1.4,col:'#3f9a5a'},
+  {id:'abierto',  nm:'Mar abierto',         w:560,floor:660,temp:.50,tint:[22,96,178], deep:[2,10,34],  prod:.7, col:'#4f8fe0'},
+  {id:'abismo',   nm:'Fosa abisal',         w:460,floor:1160,temp:.55,tint:[14,54,110],deep:[1,3,10],  prod:.45,col:'#8a6bff'},
+  {id:'polar',    nm:'Mar polar',           w:500,floor:390,temp:.95,tint:[80,140,168],deep:[6,20,34],  prod:1.6,col:'#bfe6ff'},
+];
+let WORLD_W=0;BIOMES.forEach((b,i)=>{b.i=i;b.x0=WORLD_W;WORLD_W+=b.w;b.x1=WORLD_W;b.cx=(b.x0+b.x1)/2;});
+const WORLD_H=1200,TY0=-60,BT=80;
+const BI=Object.fromEntries(BIOMES.map(b=>[b.id,b]));
+function biomeIdx(x){for(const b of BIOMES)if(x<b.x1)return b.i;return BIOMES.length-1;}
+function biomeBlend(x){
+  const i=biomeIdx(x),b=BIOMES[i];
+  if(x-b.x0<BT&&i>0)return {i:i-1,j:i,t:smooth(.5+.5*(x-b.x0)/BT)};
+  if(b.x1-x<BT&&i<BIOMES.length-1)return {i:i+1,j:i,t:smooth(.5+.5*(b.x1-x)/BT)};
+  return {i,j:i,t:1};
+}
+const floorArr=new Float32Array(WORLD_W+2);
+(function(){
+  for(let x=0;x<=WORLD_W+1;x++){
+    const {i,j,t}=biomeBlend(x);let f=lerp(BIOMES[i].floor,BIOMES[j].floor,t);
+    const d=f/400;
+    f+=Math.sin(x*.031)*5+Math.sin(x*.113)*2.2+Math.sin(x*.0071)*10*Math.min(1,d)+Math.sin(x*.21)*1.2;
+    if(x<110)f=lerp(-12,f,smooth(x/110));
+    if(x>WORLD_W-24)f=lerp(f,-10,smooth((x-(WORLD_W-24))/24));
+    floorArr[x]=f;
+  }
+})();
+const floorAt=x=>floorArr[clamp(x|0,0,WORLD_W)];
+let MINX=0,MAXX=WORLD_W;
+for(let x=0;x<WORLD_W;x++)if(floorAt(x)>16){MINX=x+2;break;}
+for(let x=WORLD_W;x>0;x--)if(floorAt(x)>16){MAXX=x-2;break;}
+let tempOff=0;
+function tempAt(x,y){const {i,j,t}=biomeBlend(x);const bt=lerp(BIOMES[i].temp,BIOMES[j].temp,t);const d=clamp(y/900,0,1);return clamp(lerp(bt,.85,d*d*.85+d*.15)+tempOff,0,1);}
+const lightAt=y=>Math.exp(-Math.max(0,y)/185);
+// hielo polar
+// el borde del hielo se mueve con las estaciones (ver season()); los agujeros están fijos
+const POL=BI.polar,ICE_BASE=POL.x0+50,ICE1=WORLD_W;let ICE0=ICE_BASE;
+const HOLES=[[.12,26],[.34,20],[.56,30],[.8,22]].map(([f,w])=>{const c=ICE_BASE+(ICE1-ICE_BASE)*f;return [c-w/2,c+w/2];});
+const iceAt=x=>x>=ICE0&&x<=ICE1&&!HOLES.some(h=>x>=h[0]&&x<=h[1]);
+function nearestHole(x){let best=ICE0-8,bd=Math.abs(ICE0-8-x);for(const h of HOLES){if(h[1]<ICE0)continue;const c=(h[0]+h[1])/2,d=Math.abs(c-x);if(d<bd){bd=d;best=c;}}return best;}
+function breathX(x){return iceAt(x)?nearestHole(x):x;}
+// cuevas de morena y fumarolas (se rellenan al construir el terreno)
+const DENS=[],VENTS=[];
+
+/* ================= rejilla espacial ================= */
+const CELL=48,GW=Math.ceil(WORLD_W/CELL)+1,GH=Math.ceil((WORLD_H-TY0)/CELL)+1;
+const headC=new Int32Array(GW*GH),headF=new Int32Array(GW*GH);
+let nextC=new Int32Array(2048),nextF=new Int32Array(8192);
+const cellOf=(x,y)=>clamp(x/CELL|0,0,GW-1)+clamp((y-TY0)/CELL|0,0,GH-1)*GW;
+function buildGrid(cr,food){
+  headC.fill(-1);headF.fill(-1);
+  if(nextC.length<cr.length)nextC=new Int32Array(cr.length*2);
+  if(nextF.length<food.length)nextF=new Int32Array(food.length*2);
+  for(let i=0;i<cr.length;i++){const k=cellOf(cr[i].x,cr[i].y);nextC[i]=headC[k];headC[k]=i;}
+  for(let i=0;i<food.length;i++){const k=cellOf(food[i].x,food[i].y);nextF[i]=headF[k];headF[k]=i;}
+}
+function near(head,next,x,y,r,cb){
+  const x0=clamp((x-r)/CELL|0,0,GW-1),x1=clamp((x+r)/CELL|0,0,GW-1),y0=clamp((y-r-TY0)/CELL|0,0,GH-1),y1=clamp((y+r-TY0)/CELL|0,0,GH-1);
+  for(let gy=y0;gy<=y1;gy++)for(let gx=x0;gx<=x1;gx++)for(let i=head[gx+gy*GW];i>=0;i=next[i])cb(i);
+}
+
+/* ================= genes y planes corporales ================= */
+const BASE={hue:[0,360,14,1],sat:[.1,1,.05],lum:[.3,.72,.03],size:[1.5,17,.2],len:[1,6,.06],speed:[.5,34,1.2],
+  glow:[0,1,.05],diet:[0,1,.06],depth:[0,1,.05],temp:[0,1,.035],life:[150,9000,20],fert:[.55,.95,.03]};
+const DISC={fin:[4,.05],pat:[4,.05],eye:[3,.04]};
+const PLANS={
+  fish:   {nm:'Peces',noun:'pez',rng:{size:[1.8,5.5],len:[1.3,2.5],speed:[8,30],life:[400,1100]},starve:110,emax:40,cap:280,group:8,cd:22,lat:['ichthys','ius','ops','ella','odon','ix']},
+  seahorse:{nm:'Caballitos de mar',noun:'caballito',rng:{size:[2,4],len:[1.6,2.2],speed:[2,5],life:[700,1400]},starve:1400,emax:30,cap:30,group:5,lat:['hippus','campus','ippe']},
+  squid:  {nm:'Calamares y sepias',noun:'calamar',rng:{size:[2.5,9],len:[1.8,2.6],speed:[10,30],life:[400,900]},starve:260,emax:50,cap:24,group:4,cd:16,lat:['teuthis','loligo','sepia']},
+  octopus:{nm:'Pulpos',noun:'pulpo',rng:{size:[3,6],len:[1,1.4],speed:[6,18],life:[800,1500]},starve:420,emax:80,cap:12,group:1,cd:20,lat:['octopus','pus','poda']},
+  crab:   {nm:'Cangrejos',noun:'cangrejo',rng:{size:[3,5.5],len:[1.4,2],speed:[4,11],life:[600,1200]},starve:340,emax:60,cap:40,group:5,lat:['carcinus','cancer','grapsus']},
+  urchin: {nm:'Erizos',noun:'erizo',rng:{size:[2,3.5],len:[1,1.05],speed:[.6,1.6],life:[900,1800]},starve:900,emax:25,cap:40,group:8,lat:['echinus','cidaris','arbacia']},
+  jelly:  {nm:'Medusas',noun:'medusa',rng:{size:[3,6.5],len:[1,1.8],speed:[3,7],life:[400,800]},starve:1800,emax:50,cap:30,group:4,cd:30,lat:['medusa','aurelia','cnidia']},
+  ray:    {nm:'Rayas',noun:'raya',rng:{size:[3,5],len:[2,3],speed:[6,14],life:[800,1400]},starve:360,emax:120,cap:10,group:2,cd:20,lat:['batis','raja','myla']},
+  moray:  {nm:'Morenas',noun:'morena',rng:{size:[2.5,4],len:[4,6],speed:[10,18],life:[2000,3500]},starve:2500,emax:120,cap:10,group:1,cd:30,lat:['muraena','gymnothorax','ophis']},
+  angler: {nm:'Rapes abisales',noun:'rape',rng:{size:[3,7],len:[1.1,1.5],speed:[1.5,5],life:[1500,3000],glow:[.8,1]},starve:3000,emax:120,cap:12,group:2,cd:30,lat:['lophius','melanocetus','ceratias']},
+  turtle: {nm:'Tortugas',noun:'tortuga',rng:{size:[5,7],len:[1.4,1.7],speed:[6,11],life:[2000,3500]},starve:1500,emax:300,cap:6,group:2,cd:14,breath:200,slow:1,lat:['chelys','emys','testudo']},
+  otter:  {nm:'Nutrias marinas',noun:'nutria',rng:{size:[3,4.5],len:[2,2.6],speed:[8,16],life:[2000,3500]},starve:800,emax:90,cap:8,group:3,cd:10,breath:70,slow:1,lat:['enhydra','lutra','phoca']},
+  penguin:{nm:'Pingüinos',noun:'pingüino',rng:{size:[3,4.5],len:[1.8,2.4],speed:[16,30],life:[1500,3000]},starve:420,emax:80,cap:16,group:5,cd:12,breath:120,slow:1,lat:['spheniscus','pygoscelis','eudyptes']},
+  seal:   {nm:'Focas',noun:'foca',rng:{size:[4,6],len:[2.2,2.8],speed:[14,26],life:[2500,4000]},starve:700,emax:200,cap:8,group:2,cd:20,breath:240,slow:1,lat:['phoca','leptonyx','halichoerus']},
+  shark:  {nm:'Tiburones',noun:'tiburón',rng:{size:[5,8],len:[2.8,3.4],speed:[15,28],life:[900,1600],sat:[.05,.35]},starve:1500,emax:300,cap:8,group:2,cd:45,slow:1,lat:['selachus','carcharias','odus']},
+  orca:   {nm:'Orcas',noun:'orca',rng:{size:[8,11],len:[3,3.6],speed:[16,26],life:[5000,8000],sat:[0,.1]},starve:3000,emax:900,cap:4,group:3,cd:60,breath:260,slow:1,lat:['orcinus','grampus','orca']},
+  whale:  {nm:'Ballenas',noun:'ballena',rng:{size:[13,17],len:[3.4,4],speed:[4,8],life:[6000,9000],sat:[.05,.35]},starve:3500,emax:1200,cap:4,group:1,breath:260,slow:1,visitor:1,lat:['cetus','balaena','physa']},
+};
+const ORDER=['fish','seahorse','squid','octopus','crab','urchin','jelly','ray','moray','angler','turtle','otter','penguin','seal','shark','orca','whale'];
+const FLOOR_PLANS=new Set(['crab','urchin','octopus']);
+const BREATHERS=new Set(['turtle','otter','penguin','seal','orca','whale']);
+const rngOf=(plan,k)=>(PLANS[plan].rng[k])||BASE[k];
+function randGenome(plan,over){
+  const g={};
+  for(const k in BASE){const [a,b]=rngOf(plan,k);g[k]=lerp(a,b,R(.2,.8));}
+  g.hue=R(0,360);g.glow=R(0,.2);g.diet=plan==='fish'?R(0,.2):0;
+  for(const k in DISC)g[k]=RI(DISC[k][0]);
+  const D={squid:{hue:R(330,380)},crab:{hue:R(-20,35),sat:R(.6,.9)},urchin:{hue:R(260,320),sat:R(.3,.6),lum:R(.3,.4)},jelly:{hue:R(180,330),glow:R(.2,.7)},
+    ray:{hue:R(20,45),sat:R(.2,.5)},turtle:{hue:R(70,130),sat:R(.3,.6)},shark:{hue:R(190,225),sat:R(.1,.3),lum:R(.4,.55)},whale:{hue:R(200,230),sat:R(.1,.3),lum:R(.34,.46)},
+    seahorse:{hue:R(30,60),sat:R(.6,.9)},octopus:{hue:R(0,25),sat:R(.5,.8)},moray:{hue:R(60,90),sat:R(.4,.7),lum:R(.35,.5),pat:2},angler:{hue:R(15,35),sat:R(.2,.4),lum:R(.25,.35),glow:R(.85,1)},
+    otter:{hue:R(20,32),sat:R(.35,.5),lum:R(.32,.42)},penguin:{hue:210,sat:.1,lum:.2},seal:{hue:R(200,220),sat:R(.05,.15),lum:R(.4,.55),pat:2},orca:{hue:220,sat:.05,lum:.12}}[plan];
+  if(D)Object.assign(g,D);
+  g.hue=((g.hue%360)+360)%360;
+  return Object.assign(g,over||{});
+}
+function mutate(p,plan){
+  const g={...p};
+  for(const k in BASE){
+    if(k==='diet'&&plan!=='fish')continue;
+    if(rnd()<.3){const [a,b]=rngOf(plan,k),sd=PLANS[plan].rng[k]?(b-a)*.045:BASE[k][2];
+      g[k]+=gauss()*sd*(rnd()<.03?4:1);
+      g[k]=BASE[k][3]?((g[k]%360)+360)%360:clamp(g[k],a,b);}
+  }
+  for(const k in DISC)if(rnd()<DISC[k][1])g[k]=RI(DISC[k][0]);
+  return g;
+}
+function dist(a,b,plan){
+  let d=0;
+  for(const k in BASE){const [lo,hi,,wrap]=rngOf(plan,k);
+    if(wrap){let h=Math.abs(a[k]-b[k]);h=Math.min(h,360-h);d+=h/180*.8;}
+    else d+=Math.abs(a[k]-b[k])/(hi-lo||1)*(PLANS[plan].rng[k]?.6:k==='temp'?1.4:1);}
+  for(const k in DISC)if(a[k]!==b[k])d+=.3;
+  return d;
+}
+const SPECIATE=1.15;
+const area=c=>c.g.size*c.g.size*c.g.len;
+const midSize=plan=>{const r=rngOf(plan,'size');return (r[0]+r[1])/2;};
+const emax=c=>PLANS[c.plan].emax*(c.g.size/midSize(c.plan))**2;
+let DL=1;
+// migración vertical: los que viven hondo (peces linterna, calamares, medusas) suben de noche
+const MIGR=new Set(['fish','squid','jelly']);
+const prefY=(g,x,plan)=>g.depth*1150*(g.depth>.5&&MIGR.has(plan)?lerp(1,.1,smooth((NIGHT-.3)/.5)):1);
+function comfort(g,x,y){return Math.abs(tempAt(x,y)-g.temp);}
+
+/* ================= nombres ================= */
+const SYL=['glu','bri','zor','mel','qui','tra','ofi','lum','pex','dra','sal','nu','ka','bo','ri','fen','al','tu','cho','ve','mo','xi','pla','ner'];
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+const genusName=plan=>cap(pick(SYL)+pick(SYL)+pick(PLANS[plan].lat));
+function colorName(g){
+  if(g.lum<.25)return 'negro';
+  if(g.sat<.25)return g.lum>.55?'plateado':'gris';
+  if(g.lum>.62&&g.sat<.45)return 'pálido';
+  const h=g.hue;
+  return h<15||h>=345?'rojo':h<40?'naranja':h<65?'dorado':h<150?'verde':h<190?'turquesa':h<250?'azul':h<290?'violeta':'rosa';
+}
+function rel(g,plan,k){const [a,b]=rngOf(plan,k);return (g[k]-a)/(b-a||1);}
+function epithet(g,plan){
+  const o=[];
+  if(g.glow>.6&&plan!=='angler')o.push('lucens','noctiluca','fulgens');
+  if(plan==='fish'&&g.diet>.6)o.push('voracis','mordax','ferox');
+  if(rel(g,plan,'size')>.8)o.push('magnus','titanicus');
+  if(rel(g,plan,'size')<.2)o.push('minimus','pusillus');
+  if(rel(g,plan,'speed')>.8)o.push('velox','fugax');
+  if(g.pat===1)o.push('striatus','tigrinus');
+  if(g.pat===2)o.push('maculatus','punctatus');
+  if(g.depth>.7)o.push('abyssalis','profundus','tenebrosus');
+  if(g.temp>.8)o.push('glacialis','borealis','antarcticus');
+  if(g.temp<.12)o.push('tropicalis','calidus');
+  if(rel(g,plan,'life')>.85)o.push('longaevus');
+  if(!o.length)o.push('vulgaris','communis','modestus','placidus','errans');
+  return pick(o);
+}
+const FEM=['medusa','raya','tortuga','ballena','sardinilla','barracuda','sepia','morena','nutria','foca','orca'];
+const ADJ={rojo:'roja',dorado:'dorada','pálido':'pálida',moteado:'moteada',enano:'enana',negro:'negra',plateado:'plateada',abisal:'abisal',polar:'polar',tropical:'tropical'};
+function commonName(g,plan){
+  let noun=PLANS[plan].noun;
+  if(plan==='fish')noun=g.diet>.6?(g.size>4.5?'atún':g.size>3.5?'barracuda':'mordisquito'):g.size<2.6?'sardinilla':g.size>4.8?'mero':g.len>2.2?'anguilote':g.pat===1&&g.hue>10&&g.hue<35?'pez payaso':'pececillo';
+  if(plan==='squid'&&g.len<2&&g.depth<.4)noun='sepia';
+  if(plan==='squid'&&g.size>7)noun='calamar';
+  const big=rel(g,plan,'size');let adj=plan==='squid'&&g.size>7?'gigante':g.glow>.65&&plan!=='angler'?'farolillo':g.pat===1?'tigre':g.pat===2?'moteado':big>.85?'gigante':big<.15?'enano':
+    g.depth>.7?'abisal':g.temp>.8?'polar':g.temp<.1?'tropical':rel(g,plan,'speed')>.85?'veloz':colorName(g);
+  if(noun==='pez payaso')adj=colorName(g)==='naranja'?'':adj==='tigre'?'':adj;
+  if(FEM.includes(noun)&&ADJ[adj])adj=ADJ[adj];
+  return (noun+' '+adj).trim();
+}
+
+/* ================= estado ================= */
+const KEY='mar_mundo_v1';
+let st;
+const spCache=new Map();
+function spById(id){let s=spCache.get(id);if(!s||s.id!==id){s=st.sp.find(q=>q.id===id);spCache.set(id,s);}return s;}
+function logE(type,txt){st.log.push({t:st.t,type,txt});if(st.log.length>400)st.log.splice(0,st.log.length-400);}
+function newSpecies(plan,g,parent,genus,home){
+  let nm=genus+' '+epithet(g,plan);
+  const dup=st.sp.filter(q=>q.name===nm||q.name.startsWith(nm+' ')).length;
+  if(dup)nm+=' '+['II','III','IV','V','VI','VII','VIII','IX','X'][Math.min(dup-1,8)];
+  const s={id:st.nextSp++,plan,name:nm,common:commonName(g,plan),g:{...g},parent,born:st.t,extinct:null,alive:0,peak:0,home};
+  st.sp.push(s);return s;
+}
+function spawn(plan,g,spId,gen,x,y,e){
+  const c={id:st.nextId++,plan,g,x,y,vx:0,vy:0,e,age:0,sp:spId,gen,dir:rnd()<.5?-1:1,ph:R(0,4),wx:x,wy:y,wt:0,cd:0,o2:1,pt:R(0,2)};
+  if(PLANS[plan].visitor)c.leave=R(2400,6000);
+  st.cr.push(c);const s=spById(spId);s.alive++;s.peak=Math.max(s.peak,s.alive);
+  return c;
+}
+function load(){try{const j=localStorage.getItem(KEY);if(j){st=JSON.parse(j);return true;}}catch(e){}return false;}
+function save(){if(NOSAVE)return;try{localStorage.setItem(KEY,JSON.stringify(st,(k,v)=>(k==='spr'||k==='sprJ'||k==='sprF'||k==='sprV'||k==='_m'||k==='_tf'||k==='bi'||k==='_ck')?undefined:v));}catch(e){}}
+
+/* ================= sprites ================= */
+const hsl=(h,s,l,a)=>a==null?`hsl(${h|0},${(s*100)|0}%,${(clamp(l,0,1)*100)|0}%)`:`hsla(${h|0},${(s*100)|0}%,${(clamp(l,0,1)*100)|0}%,${a})`;
+function mk(w,h){const c=document.createElement('canvas');c.width=Math.max(1,w|0);c.height=Math.max(1,h|0);const x=c.getContext('2d');
+  return {c,x,P:(px,py,col)=>{x.fillStyle=col;x.fillRect(px|0,py|0,1,1);}};}
+function pal(g){return {base:hsl(g.hue,g.sat,g.lum),dark:hsl(g.hue,g.sat,g.lum*.55),light:hsl(g.hue,g.sat*.8,g.lum+.22),acc:hsl((g.hue+150)%360,.95,.7)};}
+const WOB=[0,1,0,-1];
+function sFish(g,fr){
+  const h=Math.max(2,Math.round(g.size)),L=Math.max(3,Math.round(g.size*g.len));
+  const tail=Math.max(2,Math.round(h*.7)),finH=(g.fin===1||g.fin===3)&&h>2?Math.max(1,Math.round(h*.4)):0,low=g.fin===2?Math.max(2,Math.round(h*.7)):0;
+  const {c,P}=mk(L+tail+1,h+finH+low+4),oy=finH+2,{base,dark,light,acc}=pal(g),cy=oy+h/2,w=WOB[fr];
+  for(let i=0;i<tail;i++){const px=tail-1-i,hh=Math.round(.4+i*(h*.55)/tail*(g.fin===3?1.3:1)),sh=Math.round(w*(i+1)/tail*1.2);
+    for(let k=-hh;k<=hh;k++){if(g.fin===0&&i===tail-1&&hh>1&&Math.abs(k)<hh*.5)continue;P(px,Math.floor(cy)+k+sh,i===tail-1||Math.abs(k)===hh?dark:base);}}
+  for(let px=tail;px<tail+L;px++){const u=(px+.5-tail)/L,tp=.55+.45*Math.sin(Math.PI*Math.min(1,u*1.1+.12));
+    for(let py=oy;py<oy+h;py++){const dx=(px+.5-tail-L/2)/(L/2),dy=(py+.5-cy)/(h/2*tp),r=dx*dx+dy*dy;if(r>1)continue;
+      let col=dy>.3?light:base;if(g.pat===3&&dy<-.1)col=dark;if(g.pat===1&&(px-tail)%3===0&&u<.78)col=dark;
+      if(g.pat===2&&(px*7+py*13+(g.hue|0))%9===0)col=dy>.3?dark:light;if(r>.75&&h>2)col=dark;P(px,py,col);}}
+  if(finH){const a=Math.round(tail+L*.25),b=Math.round(tail+L*.62);for(let px=a;px<=b;px++){const hh=Math.round(finH*(1-(px-a)/(b-a+1)*.8));for(let k=1;k<=hh;k++)P(px,oy-k+1,k===hh?dark:base);}}
+  if(low){const a=Math.round(tail+L*.35);for(let i=0;i<low;i++){P(a-Math.round(i*.7)+(i>1?w:0),oy+h-1+i,i%2?dark:light);}}
+  if(g.glow>.4&&L>4)for(let px=tail+1;px<tail+L-2;px+=2)P(px,Math.round(cy),acc);
+  const ex=tail+L-1-Math.max(1,Math.round(L*.2)),ey=Math.round(oy+h*.36);
+  if(g.eye===2&&h>3){P(ex,ey,'#fff');P(ex+1,ey,'#fff');P(ex+1,ey+1,'#05080c');P(ex,ey+1,'#fff');}else if(g.eye>=1&&h>2){P(ex,ey,'#fff');P(ex+1,ey,'#05080c');}else P(ex,ey,'#05080c');
+  if(g.diet>.6){P(tail+L-1,Math.round(cy),'#fff');}
+  return c;
+}
+function sShark(g,fr){
+  const h=Math.max(3,Math.round(g.size)),L=Math.round(g.size*g.len),tail=Math.round(h*1.15);
+  const {c,P}=mk(L+tail+2,h*2+6),oy=Math.round(h*.95)+2,cy=oy+h/2,w=WOB[fr];
+  const top=hsl(g.hue,g.sat,g.lum),dark=hsl(g.hue,g.sat,g.lum*.62),belly='#e3e9eb',bd='#b8c3c7';
+  const thf=u=>u<.1?.22+u*2.2:u<.7?.44+.56*Math.sin(Math.PI/2*Math.min(1,(u-.1)/.45)):1-((u-.7)/.3)**1.7*.78;
+  const ccy=u=>cy-(u>.82?(u-.82)*h*.7:0)+(u<.3?Math.round(w*(.3-u)/.3):0);
+  for(let px=0;px<L;px++){const u=px/(L-1),th=h/2*thf(u),cc=ccy(u);
+    for(let py=Math.floor(cc-th);py<=Math.ceil(cc+th);py++){const dy=py+.5-cc;if(Math.abs(dy)>th)continue;
+      let col=dy>th*.3?belly:top;if(Math.abs(dy)>th-.9)col=dy>0?bd:dark;P(tail+px,py,col);}}
+  // dorsal
+  const a=Math.round(L*.42),b=Math.round(L*.6),ap=Math.round(L*.47);
+  for(let px=a;px<=b;px++){const u=px/(L-1),base=ccy(u)-h/2*thf(u),hh=px<=ap?(px-a+1)/(ap-a+1)*h*.85:h*.85*(1-((px-ap)/(b-ap+1))**.7);
+    for(let k=0;k<hh;k++)P(tail+px,Math.round(base-k),k>=hh-1?dark:top);}
+  // pectoral
+  for(let i=0;i<Math.round(h*.75);i++){P(tail+Math.round(L*.66)-Math.round(i*.9),Math.round(cy+h*.3+i*.65),dark);P(tail+Math.round(L*.66)-Math.round(i*.9)+1,Math.round(cy+h*.3+i*.65),top);}
+  // cola en media luna
+  const sc=cy+w;
+  for(let i=0;i<tail;i++){const px=tail-1-i,f=i/tail;
+    const ut=Math.round(1+i*1.0),th=Math.max(1,Math.round(2.2*(1-f)));
+    for(let k=0;k<th;k++)P(px,Math.round(sc-ut+k),k===0?dark:top);
+    if(f<.7){const lt=Math.round(1+i*.65),th2=Math.max(1,Math.round(1.8*(1-f/.7)));for(let k=0;k<th2;k++)P(px,Math.round(sc+lt-k),k===0?dark:top);}
+    if(i<2)for(let y=Math.round(sc-ut);y<=Math.round(sc+1+i*.65);y++)P(px,y,top);}
+  // ojo, branquias, boca
+  P(tail+Math.round(L*.87),Math.round(ccy(.87)-h*.15),'#05080c');
+  for(let k=0;k<3;k++){P(tail+Math.round(L*.73)+k*1,Math.round(cy),dark);P(tail+Math.round(L*.73)+k*1,Math.round(cy)+1,dark);}
+  for(let k=0;k<3;k++)P(tail+L-2-k,Math.round(ccy(.95)+h*.22),'#4a3636');
+  return c;
+}
+function sWhale(g,fr){
+  const h=Math.round(g.size),L=Math.round(g.size*g.len),fl=Math.round(h*.8);
+  const {c,P}=mk(L+fl+2,h*2+4),cy=Math.round(h*.7)+h/2+1,w=WOB[fr];
+  const top=hsl(g.hue,g.sat,g.lum),dark=hsl(g.hue,g.sat,g.lum*.62),belly=hsl(g.hue,g.sat*.5,g.lum+.28),pl=hsl(g.hue,g.sat*.5,g.lum+.12);
+  const thf=u=>u<.18?.18+u/.18*.42:u<.82?.6+.4*Math.sin((u-.18)/.64*Math.PI/2):1-((u-.82)/.18)**2*.4;
+  const sh=u=>Math.round(w*Math.max(0,.35-u)/.35*1.5);
+  for(let px=0;px<L;px++){const u=px/(L-1),th=h/2*thf(u),cc=cy+sh(u);
+    for(let py=Math.floor(cc-th);py<=Math.ceil(cc+th);py++){const dy=py+.5-cc;if(Math.abs(dy)>th)continue;
+      let col=top;if(dy>th*.1){col=u>.45?(py%2?belly:pl):belly;}if(g.pat===2&&(px*5+py*11)%13===0&&dy<0)col=pl;
+      if(Math.abs(dy)>th-1&&dy<0)col=dark;P(fl+px,py,col);}}
+  // dorsal pequeña
+  const dx=Math.round(L*.3);for(let k=0;k<2;k++){P(fl+dx-k,cy+sh(.3)-h/2*thf(.3)-1-k*.5,dark);P(fl+dx+1-k,cy+sh(.3)-h/2*thf(.3)-1,dark);}
+  // aleta pectoral
+  for(let i=0;i<Math.round(h*.8);i++)P(fl+Math.round(L*.66)-Math.round(i*.8),cy+h*.25+i*.8,i%3?belly:pl);
+  // aleta caudal
+  for(let i=0;i<fl;i++){const px=fl-1-i,f=i/fl,y=cy+Math.round(w*1.5)+Math.round(w*i*.45),th=Math.max(1,Math.round(3*(1-f*.7)));for(let k=0;k<th;k++)P(px,y-Math.floor(th/2)+k,k===0?dark:top);}
+  // ojo y boca
+  const ex=fl+Math.round(L*.86);P(ex,Math.round(cy+h*.08),'#05080c');
+  for(let px=Math.round(L*.78);px<L-1;px++)P(fl+px,Math.round(cy+h*.18),dark);
+  return c;
+}
+function sCrab(g,fr){
+  const w=Math.max(4,Math.round(g.size*1.5)),h=Math.max(2,Math.round(g.size*.75));
+  const cw=w+Math.round(g.size*1.4)+4,ch=h+Math.round(g.size*1.2)+4;
+  const {c,P}=mk(cw,ch),{base,dark,light}=pal(g),cx=cw/2,y0=Math.round(g.size*.55)+2;
+  // patas
+  for(let i=0;i<3;i++){const lift=(i+fr)%2?1:0;for(const s of [-1,1]){const sx=Math.round(cx+s*(w/2-1-i*1.2));
+    P(sx+s,y0+h-1-lift,dark);P(sx+s*2,y0+h-lift,dark);if(g.size>4)P(sx+s*3,y0+h+1-lift,dark);}}
+  // caparazón
+  for(let px=0;px<cw;px++)for(let py=y0;py<y0+h;py++){const dx=(px+.5-cx)/(w/2),dy=(py+.5-y0-h*.6)/(h*.6);if(dx*dx+dy*dy>1)continue;
+    let col=dy<-.4?light:base;if(dx*dx+dy*dy>.7)col=dark;if(g.pat===2&&(px*3+py*7)%5===0)col=light;P(px,py,col);}
+  // ojos
+  for(const s of [-1,1]){const ex=Math.round(cx+s*w*.18-(s>0?1:0));P(ex,y0-1,dark);P(ex,y0-2,'#111');}
+  // pinzas
+  const open=fr%2;for(const s of [-1,1]){const ax=Math.round(cx+s*(w/2)),ay=y0+Math.round(h*.3);
+    P(ax+s*0,ay,dark);P(ax+s*1,ay-1,base);const px=ax+s*2,py=ay-3;
+    P(px,py+1,base);P(px+s,py+1,base);P(px,py,light);P(px+s,py-open,light);P(px,py+2,dark);}
+  return c;
+}
+function sJelly(g,fr){
+  const ws=[1,.85,.75,.92][fr],hs=[.8,.95,1.05,.88][fr];
+  const bw=Math.max(3,Math.round(g.size*1.5*ws)),bh=Math.max(2,Math.round(g.size*.85*hs)),tl=Math.round(g.size*(1.2+g.len*.6));
+  const cw=Math.round(g.size*1.8)+4,ch=bh+tl+5,cx=cw/2;
+  const {c,P}=mk(cw,ch),y0=2;
+  const fill=hsl(g.hue,g.sat,g.lum+.15,.55),rim=hsl(g.hue,g.sat,g.lum,.85),hi=hsl(g.hue,g.sat*.6,.85,.8),gon=hsl((g.hue+30)%360,.8,.7,.85);
+  for(let py=0;py<bh;py++){const yy=(bh-py)/bh,hw=bw/2*Math.sqrt(Math.max(0,1-(yy*yy)*.9));
+    for(let px=Math.round(cx-hw);px<Math.round(cx+hw);px++){const edge=px===Math.round(cx-hw)||px===Math.round(cx+hw)-1||py===0;P(px,y0+py,edge?rim:fill);}}
+  P(Math.round(cx-bw*.2),y0+1,hi);
+  if(bh>2)for(let k=-1;k<=1;k+=2){P(Math.round(cx+k*bw*.15),y0+Math.round(bh*.6),gon);}
+  const nt=3+(g.fin%3);
+  for(let t=0;t<nt;t++){const bx=Math.round(cx-bw/2+1+t*(bw-2)/(nt-1||1));
+    for(let j=0;j<tl;j++){const x=bx+Math.round(Math.sin(j*.55+fr*1.57+t)*.9);P(x,y0+bh+j,hsl(g.hue,g.sat,g.lum+.2,.55*(1-j/tl)+.15));}}
+  for(let j=0;j<tl*.6;j++){const x=Math.round(cx)+Math.round(Math.sin(j*.4+fr*1.57)*.8);P(x,y0+bh+j,hsl(g.hue,g.sat,g.lum+.25,.75));P(x-1,y0+bh+j,hsl(g.hue,g.sat,g.lum+.1,.5));}
+  return c;
+}
+function sRay(g,fr){
+  const w=Math.round(g.size*g.len*1.2),h=Math.max(3,Math.round(g.size*.8)),tl=Math.round(w*.8);
+  const {c,P}=mk(w+tl+2,h+8),cx=tl+w/2,cy=4+h/2,{base,dark,light}=pal(g),fl=WOB[fr];
+  for(let px=0;px<w;px++){const dx=(px+.5-w/2)/(w/2),off=Math.round(fl*Math.max(0,(Math.abs(dx)-.45)*3));
+    for(let py=-h;py<=h;py++){const dy=py/(h/2);if(Math.abs(dx)+(dy>0?dy/.6:-dy)>1)continue;
+      let col=dy>.3?light:base;if(g.pat===2&&(px*5+py*7)%6===0)col=dark;if(Math.abs(dx)+(dy>0?dy/.6:-dy)>.82)col=dark;P(tl+px,Math.round(cy+py+off),col);}}
+  P(tl+Math.round(w*.72),Math.round(cy-1),'#05080c');P(tl+Math.round(w*.62),Math.round(cy-1),'#05080c');
+  for(let i=0;i<tl;i++)P(tl-1-i,Math.round(cy+Math.sin(i*.4+fr*1.57)*.8),i%4?dark:base);
+  return c;
+}
+function sTurtle(g,fr){
+  const sw=Math.round(g.size*1.6),sh=Math.max(3,Math.round(g.size*.8)),hr=Math.max(1,Math.round(g.size*.3));
+  const cw=sw+hr*3+4,ch=sh+Math.round(g.size)+5,{c,P}=mk(cw,ch);
+  const shell=hsl(g.hue,g.sat,g.lum),sd=hsl(g.hue,g.sat,g.lum*.55),sl=hsl(g.hue,g.sat*.7,g.lum+.15),skin=hsl((g.hue+40)%360,.3,.6),skd=hsl((g.hue+40)%360,.3,.42);
+  const ox=2,oy=2,cx=ox+sw/2,cy=oy+sh;
+  // aleta delantera
+  const ang=[-.5,-.1,.35,-.1][fr],fl=Math.round(g.size*.9);
+  for(let i=0;i<fl;i++)P(ox+sw*.72-Math.round(Math.cos(ang)*i),cy+Math.round(Math.sin(ang+1.1)*i*.8),i===fl-1?skd:skin);
+  P(ox+2,cy+1+(fr%2),skin);P(ox+1,cy+1+(fr%2),skd);
+  // caparazón
+  for(let px=0;px<sw;px++)for(let py=0;py<=sh;py++){const dx=(px+.5-sw/2)/(sw/2),dy=(py-sh)/sh;if(dx*dx+dy*dy>1)continue;
+    let col=shell;if((px+py*2)%4===0||(px-py*2+40)%4===0)col=sd;if(dy<-.75)col=sl;if(dx*dx+dy*dy>.8)col=sd;P(ox+px,oy+py,col);}
+  for(let px=1;px<sw-1;px++)P(ox+px,cy+1,'#d8cc9a');
+  // cabeza
+  const hx=ox+sw+hr,hy=cy-Math.round(hr*.5);
+  for(let px=-hr;px<=hr;px++)for(let py=-hr;py<=hr;py++)if(px*px+py*py<=hr*hr+.5)P(hx+px,hy+py,skin);
+  P(hx-hr,hy,skin);P(hx+Math.max(0,hr-1),hy-Math.min(1,hr-1),'#05080c');
+  return c;
+}
+function sSquid(g,fr){
+  const ml=Math.round(g.size*g.len),mh=Math.max(3,Math.round(g.size*.7)),tl=Math.round(g.size*1.1);
+  const ch=mh+6,cw=tl+ml+5,{c,P}=mk(cw,ch),cy=Math.floor(ch/2),{base,dark,light,acc}=pal(g);
+  const hx=tl+1,spread=[1,.6,.3,.7][fr];
+  // tentáculos
+  for(let k=0;k<5;k++){const kk=(k-2)/2,len=k===1||k===3?tl:Math.round(tl*.75);
+    for(let j=0;j<len;j++){const y=Math.round(cy+kk*spread*(.6+j/tl*1.4)+Math.sin(j*.7+fr*1.57+k)*.35);P(hx-1-j,y,j>=len-1?dark:base);}}
+  // cabeza
+  for(let py=-1;py<=1;py++){P(hx,cy+py,base);P(hx+1,cy+py,base);}
+  P(hx+1,cy-1,'#fff');P(hx+2,cy-1,'#05080c');
+  // manto
+  for(let px=0;px<ml;px++){const u=px/ml,th=mh/2*(u<.15?.8+u:1-((u-.15)/.85)**1.6*.9);
+    for(let py=Math.floor(cy-th);py<=Math.ceil(cy+th);py++){const dy=py+.5-cy;if(Math.abs(dy)>th)continue;
+      let col=dy>th*.35?light:base;if(Math.abs(dy)>th-.8)col=dark;if(g.pat&&(px*3+py*5)%(g.pat+4)===0)col=dark;if(g.glow>.5&&(px*2+py)%5===0&&Math.abs(dy)<th-.8)col=acc;P(hx+2+px,py,col);}}
+  // aletas
+  const fa=[1,0,-1,0][fr],fl=Math.max(2,Math.round(ml*.32));
+  for(let i=0;i<fl;i++){const x=hx+2+ml-2-i,e=Math.round(Math.min(i,fl-i)*.9)+1;
+    for(let k=1;k<=e;k++){P(x,Math.round(cy-mh*.3-k)-(fa>0?1:0)*(k>1?1:0),k===e?dark:base);P(x,Math.round(cy+mh*.3+k)+(fa<0?1:0)*(k>1?1:0),k===e?dark:base);}}
+  return c;
+}
+function makeFossil(plan,g){
+  const bone='#e6dcc0',dim='#a99c7c';
+  if(plan==='crab'||plan==='turtle'){const w=Math.round(g.size*(plan==='crab'?1.5:1.6)),h=Math.max(2,Math.round(g.size*.8));const {c,P}=mk(w+2,h+2);
+    for(let px=0;px<w;px++)for(let py=0;py<h;py++){const dx=(px+.5-w/2)/(w/2),dy=(py+.5-h)/h;const r=dx*dx+dy*dy;if(r<=1&&(r>.6||(px+py)%3===0))P(px+1,py+1,r>.6?bone:dim);}return c;}
+  const L=Math.round(g.size*g.len*(plan==='ray'?.9:1)),h=Math.round(g.size),tail=Math.round(h*.6);const {c,P}=mk(L+tail+2,h+3),cy=1+(h>>1);
+  for(let px=tail-1;px<tail+L-1;px++)P(px,cy,bone);
+  for(let px=tail+1;px<tail+L-Math.max(2,L*.25);px+=2){const rh=Math.max(1,Math.round(h*.42*(1-Math.abs((px-tail)/L-.5))));for(let k=1;k<=rh;k++){P(px,cy-k,dim);P(px,cy+k,dim);}}
+  const hx=tail+L-Math.max(2,Math.round(L*.2));for(let px=hx;px<tail+L;px++)for(let k=-Math.round(h*.3);k<=Math.round(h*.3);k++)P(px,cy+k,bone);
+  P(tail+L-2,cy-1,'#3a3122');
+  for(let k=0;k<tail;k++){P(tail-1-k,cy-1-Math.round(k*.6),dim);P(tail-1-k,cy+1+Math.round(k*.6),dim);}
+  return c;
+}
+
+/* ---- sprites nuevos ---- */
+function tpl(rows,map){const h=rows.length,w=Math.max(...rows.map(r=>r.length));const {c,P}=mk(w,h);
+  rows.forEach((r,y)=>{for(let x=0;x<r.length;x++){const k=r[x];if(k!=='.'&&map[k])P(x,y,map[k]);}});return c;}
+function cmap(g){const p=pal(g);return {b:p.base,d:p.dark,l:p.light,a:p.acc,e:'#05080c',w:'#f2f6f8',o:'#f2a33a',r:'#c8433a',y:'#ffe9a0'};}
+function sSeahorse(g,fr){
+  const fin=['a','.','a','.'][fr];
+  const rows=["..dd...",".dbbd..",".dbebdd","..dbb..",fin+".bbl..",".dbbl..",fin+"dbbl..","..dbbl.","...dbd.","..d..b.","...dbd."];
+  if(g.size>3.2)rows.splice(5,0,".dbbl..");
+  const m=cmap(g);m.a=hsl(g.hue,g.sat,g.lum+.25,.8);return tpl(rows,m);
+}
+function sUrchin(g,fr){
+  const F=[[".d.d.d.","d.bbb.d",".bbbbb.","d.bbb.d",".d...d."],["..d.d..",".dbbbd.","dbbbbbd",".dbbbd.","..d.d.."]];
+  return tpl(F[fr%2],cmap(g));
+}
+function sPenguin(g,fr,onIce){
+  if(onIce)return tpl([".dd..","ddeo.","dwd..","dwwd.","dwwd.","dwwd.",fr%2?".o.o.":"o..o."],{d:'#1a2230',w:'#eef2f4',e:'#fff',o:'#f2a33a'});
+  const fl=["..d...d..","...d.d...","....d....","...d.d..."][fr];
+  return tpl(["...dddd...",".ddddddwo.","dwwwwwwwd.",fl],{d:'#1a2230',w:'#eef2f4',o:'#f2a33a'});
+}
+function sOtter(g,fr,float){
+  const m=cmap(g);m.l=hsl(g.hue,g.sat*.6,g.lum+.25);
+  if(float)return tpl([fr%2?"..b....b...":".b......b..","blllllllbbe",".bbbbbbbbb."],m);
+  const lg=["..b....b...","...b..b....","..b....b...",".b......b.."][fr];
+  return tpl(["...bbbbbb..","dbbbbbbbbbe",".lllllllbb.",lg],m);
+}
+function sAngler(g,fr){
+  const lure=fr%2?".......a..":"......a...";
+  const tail=["dd","d.","dd",".d"][fr];
+  const m=cmap(g);m.a='#d8fff4';
+  return tpl([lure,"......d.d.","...dddd...","..dbbbbdd.",".dbbbebbww",tail+"bbbbbbdw",".dbbbbbdd.","...dddd..."],m);
+}
+function sOctopus(g,fr){
+  const T=[[".b.bb.b.","b..bb..b"],[".bb..bb.",".b.bb.b."],["b.b..b.b",".b.bb.b."],[".b.bb.b.","..b..b.."]][fr];
+  return tpl(["..dbbd..",".dbbbbd.",".bebbeb.",".dbbbbd.",...T],cmap(g));
+}
+function sSeal(g,fr){
+  const h=Math.max(3,Math.round(g.size)),L=Math.round(g.size*g.len),fl=Math.round(h*.7),{c,P}=mk(L+fl+2,h+5);
+  const cy=2+h/2,w=WOB[fr],top=hsl(g.hue,g.sat,g.lum),dark=hsl(g.hue,g.sat,g.lum*.6),belly=hsl(g.hue,g.sat,g.lum+.2);
+  for(let px=0;px<L;px++){const u=px/(L-1),th=h/2*(u<.25?.35+u*2.6:u<.82?1:1-((u-.82)/.18)**2*.45),cc=cy+(u<.3?Math.round(w*(.3-u)/.3):0);
+    for(let py=Math.floor(cc-th);py<=Math.ceil(cc+th);py++){const dy=py+.5-cc;if(Math.abs(dy)>th)continue;let col=dy>th*.25?belly:top;
+      if(g.pat===2&&(px*5+py*7)%7===0&&dy<0)col=dark;if(Math.abs(dy)>th-.8)col=dark;P(fl+px,py,col);}}
+  for(let i=0;i<fl;i++){P(fl-1-i,Math.round(cy+w-i*.5),dark);P(fl-1-i,Math.round(cy+w+i*.5),dark);}
+  for(let i=0;i<Math.round(h*.5);i++)P(fl+Math.round(L*.62)-i,Math.round(cy+h*.3+i*.6),dark);
+  P(fl+Math.round(L*.9),Math.round(cy-h*.15),'#05080c');P(fl+L-1,Math.round(cy+h*.05),'#05080c');P(fl+L-2,Math.round(cy+h*.2),'#cfd8dc');
+  return c;
+}
+function sOrca(g,fr){
+  const h=Math.round(g.size),L=Math.round(g.size*g.len),fl=Math.round(h*.8);
+  const {c,P}=mk(L+fl+2,h*2+4),cy=Math.round(h*1.05)+h/2,w=WOB[fr];
+  const blk='#11161c',wht='#eef2f4',gry='#59626b';
+  const thf=u=>u<.18?.2+u/.18*.45:u<.8?.65+.35*Math.sin((u-.18)/.62*Math.PI/2):1-((u-.8)/.2)**2*.5;
+  const sh=u=>Math.round(w*Math.max(0,.35-u)/.35*1.4);
+  for(let px=0;px<L;px++){const u=px/(L-1),th=h/2*thf(u),cc=cy+sh(u);
+    for(let py=Math.floor(cc-th);py<=Math.ceil(cc+th);py++){const dy=py+.5-cc;if(Math.abs(dy)>th)continue;
+      let col=dy>th*.2&&u>.35?wht:blk;if(u>.78&&u<.88&&dy<-th*.1&&dy>-th*.6)col=wht;if(u>.4&&u<.55&&dy<-th*.55)col=gry;P(fl+px,py,col);}}
+  const a=Math.round(L*.45),ap=Math.round(L*.5),b=Math.round(L*.58);
+  for(let px=a;px<=b;px++){const u=px/(L-1),base=cy+sh(u)-h/2*thf(u),hh=px<=ap?(px-a+1)/(ap-a+1)*h*1.05:h*1.05*(1-((px-ap)/(b-ap+1)));for(let k=0;k<hh;k++)P(fl+px-Math.round(k*.15),Math.round(base-k),blk);}
+  for(let i=0;i<Math.round(h*.6);i++)P(fl+Math.round(L*.66)-Math.round(i*.7),cy+h*.3+i*.7,blk);
+  for(let i=0;i<fl;i++){const px=fl-1-i,f=i/fl,y=cy+Math.round(w*1.4)+Math.round(w*i*.45),th=Math.max(1,Math.round(3*(1-f*.7)));for(let k=0;k<th;k++)P(px,y-Math.floor(th/2)+k,blk);}
+  P(fl+Math.round(L*.84),Math.round(cy-h*.05),'#05080c');
+  return c;
+}
+function sMoray(g,fr){
+  const h=Math.max(2,Math.round(g.size)),L=Math.round(g.size*g.len),{c,P}=mk(L+2,h+6),cy=3+h/2,{base,dark,light}=pal(g);
+  for(let px=0;px<L;px++){const u=px/(L-1),th=h/2*(u<.15?u/.15*.7+.3:u>.9?1-(u-.9)*3:1),wv=Math.round(Math.sin(px*.35+fr*1.57)*1.2*(1-u));
+    for(let py=Math.floor(cy-th);py<=Math.ceil(cy+th);py++){const dy=py+.5-cy;if(Math.abs(dy)>th)continue;let col=dy>th*.3?light:base;
+      if(g.pat===2&&(px*5+py*3)%5===0)col=dark;if(dy<-th+.8)col=hsl(g.hue,g.sat,g.lum+.15);P(px,py+wv,col);}}
+  P(L-3,Math.round(cy-h*.2),'#f2f6f8');P(L-2,Math.round(cy-h*.2),'#05080c');P(L-1,Math.round(cy+h*.15),'#2a0c0c');P(L-2,Math.round(cy+h*.25),'#f2f6f8');
+  return c;
+}
+function sSub(fr,lights){
+  const L=30,h=11,{c,P}=mk(L+8,h+9),oy=7,cy=oy+h/2;
+  const Y='#e8b04a',Yd='#a8722a',Yl='#ffd98a',G='#4e5a63',Gd='#2c343a';
+  // hélice
+  const bl=[[0,-3,0,3],[0,-2,0,2],[0,-3,0,3],[0,-1,0,1]][fr];
+  for(let k=bl[1];k<=bl[3];k++)P(1,Math.round(cy)+k,k===bl[1]||k===bl[3]?Gd:G);P(2,Math.round(cy),G);P(3,Math.round(cy),G);
+  // casco
+  for(let px=0;px<L;px++){const u=px/(L-1),th=h/2*(u<.12?.45+u*4.5:u>.85?1-((u-.85)/.15)**2*.6:1);
+    for(let py=Math.floor(cy-th);py<=Math.ceil(cy+th);py++){const dy=py+.5-cy;if(Math.abs(dy)>th)continue;
+      let col=dy<-th*.45?Yl:dy>th*.4?Yd:Y;if(Math.abs(dy)>th-.8)col=Yd;if(px%7===3&&Math.abs(dy)<th-1)col=dy<0?Y:Yd;P(px+4,py,col);}}
+  // aletas
+  for(let k=0;k<3;k++){P(6+k,Math.round(cy-h/2-1+k*0),Yd);P(6+k,Math.round(cy+h/2+0),Yd);}P(5,Math.round(cy-h/2-2),Yd);P(5,Math.round(cy+h/2+1),Yd);
+  // torreta y periscopio
+  for(let px=13;px<21;px++)for(let py=oy-3;py<oy+1;py++)P(px,py,py===oy-3?Yl:Y);
+  P(18,oy-4,G);P(18,oy-5,G);P(18,oy-6,G);P(19,oy-6,G);P(20,oy-6,'#9fd8ff');
+  // ojos de buey
+  for(const px of [12,17]){P(px,Math.round(cy-1),'#2a4a5a');P(px+1,Math.round(cy-1),'#9fd8ff');P(px,Math.round(cy),'#2a4a5a');P(px+1,Math.round(cy),'#2a4a5a');}
+  // cúpula delantera con piloto
+  const dx=L+1,dr=3.6;for(let px=-4;px<=1;px++)for(let py=-4;py<=4;py++){const r=Math.hypot(px+.5,py);if(r<=dr&&px+dx-1<L+4){P(dx+px,Math.round(cy)+py-1,r>dr-1?'#3b6b7c':(px===-1&&py===-2?'#e6fbff':'#7cc8e0'));}}
+  P(dx-2,Math.round(cy)-1,'#2b2b2b');P(dx-2,Math.round(cy),'#f0c090');
+  // foco
+  P(L+2,Math.round(cy+h/2-1),lights>.2?'#fffbe0':'#777');P(L+1,Math.round(cy+h/2-1),G);
+  // luces de navegación
+  P(14,oy-4,fr%2?'#ff4a4a':'#7a1a1a');P(5,Math.round(cy+h/2),fr%2?'#39ff7a':'#1a5a2a');
+  return c;
+}
+
+/* ---- fábrica de sprites ---- */
+const MAKERS={fish:sFish,shark:sShark,whale:sWhale,crab:sCrab,jelly:sJelly,ray:sRay,turtle:sTurtle,squid:sSquid,
+  seahorse:sSeahorse,urchin:sUrchin,penguin:sPenguin,otter:sOtter,angler:sAngler,octopus:sOctopus,seal:sSeal,orca:sOrca,moray:sMoray};
+function makeSprite(plan,g,fr,v){return MAKERS[plan](g,fr,v);}
+const iconCache=new Map(),fossilSpr=new Map();
+function icon(s){let u=iconCache.get(s.id);if(!u){u=makeSprite(s.plan,s.g,0).toDataURL();iconCache.set(s.id,u);}return u;}
+function getSpr(c){
+  const v=c.plan==='penguin'&&c.onIce?'ice':c.plan==='otter'&&(c.eating>0||(c.y<2&&!c.br&&Math.hypot(c.vx,c.vy)<3))?'float':null;
+  if(v){c.sprV=c.sprV||{};if(!c.sprV[v])c.sprV[v]=[0,1,2,3].map(f=>makeSprite(c.plan,c.g,f,true));return c.sprV[v];}
+  const juv=c.age<c.g.life*.12&&c.plan!=='whale'&&c.plan!=='urchin'&&c.plan!=='seahorse';
+  if(juv){if(!c.sprJ){const jg={...c.g,size:Math.max(rngOf(c.plan,'size')[0]*.7,c.g.size*.6)};c.sprJ=[0,1,2,3].map(f=>makeSprite(c.plan,jg,f));}return c.sprJ;}
+  if(!c.spr)c.spr=[0,1,2,3].map(f=>makeSprite(c.plan,c.g,f));return c.spr;
+}
+
+/* ---- plantas ---- */
+const PLANTS=[];const KB=new Map();
+function kelpNear(x){const out=[];for(let b=(x>>3)-1;b<=(x>>3)+1;b++){const l=KB.get(b);if(l)out.push(...l);}return out;}
+function inKelp(c){for(const p of kelpNear(c.x|0))if(Math.abs(c.x-p.x)<3&&c.y>floorAt(p.x)-p.h*p.hp)return true;return false;}
+function buildPlants(){
+  let seed=11;const sr=()=>((seed=(seed*16807)%2147483647)/2147483647);
+  const add=(kind,x,h,hue,extra)=>{if(floorAt(x)<14)return;const p=Object.assign({kind,x:Math.round(x),h,hue,s:sr()*9,front:sr()<.3,hp:1},extra||{});PLANTS.push(p);if(kind==='kelp'){const b=p.x>>3;if(!KB.has(b))KB.set(b,[]);KB.get(b).push(p);}};
+  const K=BI.kelp;for(let x=K.x0+20;x<K.x1-10;x+=4+sr()*7)add('kelp',x,floorAt(x)*(.5+sr()*.42),95+sr()*35);
+  const NF=BI.naufragio;for(let x=NF.x1-90;x<NF.x1;x+=10+sr()*14)add('kelp',x,floorAt(x)*(.25+sr()*.3),100+sr()*30);
+  for(let x=POL.x0+30;x<POL.x0+200;x+=14+sr()*20)add('kelp',x,floorAt(x)*(.15+sr()*.25),70+sr()*30);
+  const PS=BI.posidonia;for(let x=PS.x0+30;x<PS.x1-30;x+=1.6+sr()*2.2)if(Math.sin(x*.05)+sr()*.8>-.4)add('pos',x,8+sr()*9,110+sr()*25);
+  for(let x=MINX+5;x<BI.arrecife.x1;x+=8+sr()*14)add('grass',x,4+sr()*5,90+sr()*50);
+  const AR=BI.arrecife;for(let x=AR.x0+30;x<AR.x1-30;x+=18+sr()*26)add('anem',x,4+sr()*3,pick([330,20,280,50,170]),{n:5+RI(4)});
+  if(st&&st.kelpHp){const ks=PLANTS.filter(p=>p.kind==='kelp');st.kelpHp.forEach((v,i)=>{if(ks[i])ks[i].hp=v;});}
+}
+
+/* ---- terreno ---- */
+const SANDC={manglar:[112,92,62],arrecife:[228,212,168],posidonia:[206,186,138],naufragio:[150,140,116],kelp:[96,94,84],abierto:[84,88,98],abismo:[42,40,50],polar:[122,128,134]};
+const TW=WORLD_W+2,TH=WORLD_H-TY0;
+let terr,tctx;
+function hash(x,y){let h=(x*374761393+y*668265263)|0;h=(h^(h>>>13))*1274126177|0;return ((h^(h>>>16))>>>0)/4294967295;}
+function buildTerrain(){
+  const first=!terr;
+  terr=document.createElement('canvas');terr.width=TW;terr.height=TH;tctx=terr.getContext('2d');
+  const img=tctx.createImageData(TW,TH),D=img.data;
+  for(let x=0;x<TW;x++){
+    const fl=floorArr[Math.min(x,WORLD_W+1)],{i,j,t}=biomeBlend(x),c1=SANDC[BIOMES[i].id],c2=SANDC[BIOMES[j].id];
+    const base=[lerp(c1[0],c2[0],t),lerp(c1[1],c2[1],t),lerp(c1[2],c2[2],t)];
+    for(let y=Math.max(TY0,Math.floor(fl));y<WORLD_H;y++){
+      const dd=y-fl,v=hash(x,y),k=((y-TY0)*TW+x)*4;
+      let m=1-Math.min(.55,dd/90);if(dd<1.2)m*=1.15;if(v<.06)m*=1.25;else if(v<.13)m*=.7;
+      if(y<0)m*=1.1;
+      D[k]=clamp(base[0]*m,0,255);D[k+1]=clamp(base[1]*m,0,255);D[k+2]=clamp(base[2]*m,0,255);D[k+3]=255;
+    }
+  }
+  tctx.putImageData(img,0,0);
+  let seed=777;const sr=()=>((seed=(seed*16807)%2147483647)/2147483647);
+  const P=(x,y,col)=>{tctx.fillStyle=col;tctx.fillRect(x|0,(y-TY0)|0,1,1);};
+  const F=(x,y,w,h,col)=>{tctx.fillStyle=col;tctx.fillRect(x|0,(y-TY0)|0,w,h);};
+  const gy=x=>floorAt(x);
+  // rocas
+  const rock=(x,rw,rh,cols)=>{for(let px=0;px<rw;px++)for(let py=0;py<rh;py++){if((px-rw/2)**2/(rw*rw/4)+(py-rh)**2/(rh*rh)<=1)P(x+px,gy(x+px)-rh+py+1,py<1?cols[0]:sr()<.2?cols[2]:cols[1]);}};
+  for(const b of BIOMES){const n=Math.round(b.w/(b.id==='kelp'||b.id==='polar'||b.id==='abismo'?18:40));
+    const cols=b.id==='abismo'?['#3a3844','#25232c','#16151b']:b.id==='polar'?['#9aa4ab','#6c767d','#4b545a']:['#7d8a8f','#5b666b','#3d4549'];
+    for(let k=0;k<n;k++)rock(b.x0+sr()*b.w,4+Math.round(sr()*12),2+Math.round(sr()*7),cols);}
+  // corales
+  const CC=[[340,.7,.62],[18,.85,.6],[285,.5,.55],[48,.8,.6],[190,.5,.6],[10,.7,.5]];
+  const BL=(st&&st.bleach)||0;
+  const coral=(cx)=>{let [ch,cs,cl]=CC[Math.floor(sr()*CC.length)];cs*=1-BL*.9;cl=cl+(.88-cl)*BL;const kind=Math.floor(sr()*4),g0=gy(cx);
+    if(kind===0){const br=(px,py,len,dx)=>{for(let k=0;k<len;k++){const xx=px+Math.round(dx*k*.5),yy=py-k;P(xx,yy,hsl(ch,cs,cl-(k%3?0:.1)));if(k===Math.round(len*.5)&&len>3)br(xx,yy,Math.round(len*.6),dx<0?1:-1);}};br(cx,g0,5+Math.floor(sr()*8),sr()<.5?-.5:.5);br(cx+1,g0,4+Math.floor(sr()*5),.4);}
+    else if(kind===1){const r=2+Math.floor(sr()*4);for(let px=-r;px<=r;px++)for(let py=-r;py<=0;py++)if(px*px+py*py<=r*r)P(cx+px,g0+py,hsl(ch,cs,cl-((px+py)%2?0:.1)));}
+    else if(kind===2){for(let k=0;k<4;k++){const hh=2+Math.floor(sr()*6);for(let j=0;j<hh;j++)P(cx+k*2,g0-j,hsl(ch,cs,cl+(j===hh-1?.15:0)));}}
+    else{const r=4+Math.floor(sr()*4);for(let a=-1.2;a<=1.2;a+=.12)for(let k=1;k<r;k++){if(sr()<.6)P(cx+Math.round(Math.sin(a)*k),g0-Math.round(Math.cos(a)*k),hsl(ch,cs*.8,cl-.05+(k%2?.05:0)));}}};
+  const AR=BI.arrecife;for(let x=AR.x0+15;x<AR.x1-15;x+=2+sr()*6)coral(x);
+  for(let k=0;k<12;k++)coral(BI.manglar.x1-40+sr()*80);
+  for(let k=0;k<14;k++)coral(BI.posidonia.x0+sr()*BI.posidonia.w);
+  // esponjas
+  for(let k=0;k<30;k++){const x=AR.x0+sr()*AR.w+(k>22?BI.naufragio.x0-AR.x0:0),hh=4+RI(6),c=pick(['#e6c34a','#d9763a','#9b5fc0']);for(let j=0;j<hh;j++){P(x,gy(x)-j,c);P(x+1,gy(x)-j,c);}P(x,gy(x)-hh,'#3a2a10');}
+  // cuevas en el arrecife
+  for(let k=0;k<6;k++){const x=AR.x0+40+k*(AR.w-80)/5+sr()*20,rw=16,rh=10;rock(x,rw,rh,['#8a8f86','#6b7068','#4a4e48']);const dir=sr()<.5?-1:1,hx=x+rw/2+dir*4,hy=gy(x+rw/2)-4;
+    for(let px=-2;px<=2;px++)for(let py=-2;py<=1;py++)if(px*px+py*py<6)P(hx+px,hy+py,'#0c0f10');if(first)DENS.push({x:hx,y:hy,dir:-dir,taken:null});}
+  // praderas: tapete de posidonia
+  const PS=BI.posidonia;for(let x=PS.x0+20;x<PS.x1-20;x++){if(Math.sin(x*.05)>-.5){P(x,gy(x)-1,'#2f5a2a');}}
+  // nacras
+  for(let k=0;k<10;k++){const x=PS.x0+30+sr()*(PS.w-60),hh=7+RI(4);for(let j=0;j<hh;j++){const w=Math.round(1+j*.35);for(let q=0;q<w;q++)P(x+q-(w>>1),gy(x)-j,j%2?'#7a5232':'#946a44');}}
+  // naufragio
+  const NF=BI.naufragio,wx=NF.cx-40,wl=90;
+  for(let px=0;px<wl;px++){const u=px/wl,hh=Math.round(16*Math.sin(Math.min(1,u*1.2)*Math.PI*.5+.2)*(u>.9?1-(u-.9)*6:1)),base=gy(wx+px)+1-Math.round(px*.05);
+    for(let py=0;py<hh;py++){const col=py===hh-1?'#6e5a40':(px+py)%9===0?'#3c3022':py<3?'#4a3c2c':'#5a4834';P(wx+px,base-py,col);}
+    if(px%14===7&&hh>8){P(wx+px,base-hh+5,'#0c0f10');P(wx+px+1,base-hh+5,'#0c0f10');}}
+  for(let j=0;j<34;j++)P(wx+38+Math.round(j*.25),gy(wx+38)-16-j,'#4a3c2c');for(let k=0;k<10;k++)P(wx+42+k,gy(wx+42)-34+Math.round(k*.3),'#4a3c2c');
+  for(let k=0;k<12;k++)coral(wx+sr()*wl);
+  for(let k=0;k<4;k++){const hx=wx+12+k*22,hy=gy(hx)-6;for(let px=-2;px<=2;px++)for(let py=-2;py<=1;py++)if(px*px+py*py<6)P(hx+px,hy+py,'#0a0c0d');if(first)DENS.push({x:hx,y:hy,dir:k%2?1:-1,taken:null});}
+  // fosa: fumarolas, gusanos tubícolas y esqueleto de ballena
+  const AB=BI.abismo;
+  for(let k=0;k<5;k++){const x=AB.cx-110+k*55+sr()*14,g0=gy(x),hh=10+RI(14);
+    for(let j=0;j<hh;j++){const w=Math.max(2,Math.round(5-j*.18));for(let q=0;q<w;q++)P(x+q-(w>>1),g0-j,(q+j)%3?'#2a2630':'#3a3240');}
+    P(x,g0-hh,'#ff8a3a');P(x-1,g0-hh,'#c0502a');if(first)VENTS.push({x,y:g0-hh});
+    for(let q=0;q<10;q++){const tx=x+R(-14,14),th=3+RI(6);for(let j=0;j<th;j++)P(tx,gy(tx)-j,'#e8e4dc');P(tx,gy(tx)-th,'#e23a3a');P(tx+1,gy(tx)-th,'#ff5a4a');}}
+  {const x=AB.cx+70,g0=gy(x);for(let px=0;px<46;px+=1)P(x+px,g0-2,'#cfc6b0');for(let px=2;px<36;px+=3)for(let k=1;k<6-Math.abs(px-18)/8;k++){P(x+px,g0-2-k,'#bdb39c');}for(let k=0;k<5;k++)P(x+44+k%2,g0-3-k,'#cfc6b0');}
+  // manglar: árboles y raíces
+  const MG=BI.manglar;
+  for(let k=0;k<9;k++){const x=MG.x0+30+k*(MG.w-80)/8+sr()*12;if(floorAt(x)>58)continue;const top=-26-RI(10);
+    for(let r=0;r<5;r++){const rx=x+R(-12,12),fy=gy(rx);for(let y=-6;y<fy;y++){const u=(y+6)/(fy+6);P(rx+Math.round(Math.sin(u*Math.PI)*(r%2?3:-3)*(1-u)),y,y<0?'#5a4030':'#4a3628');}}
+    for(let y=top;y<-4;y++)P(x,y,'#5a4030'),P(x+1,y,'#4a3628');
+    for(let q=0;q<70;q++){const a=sr()*Math.PI*2,rr=sr()*10;P(x+Math.round(Math.cos(a)*rr*1.4),top+Math.round(Math.sin(a)*rr*.7),sr()<.3?'#2e6a30':sr()<.5?'#3f8a3c':'#4fa04a');}}
+  // hielo polar
+  const berg=(x,w,hU,hD)=>{for(let px=0;px<w;px++){const u=px/w,s=Math.sin(u*Math.PI);const a=Math.round(hU*s*(.7+.3*Math.sin(px*.4))),b=Math.round(hD*Math.sqrt(s));for(let y=-a;y<b;y++)P(x+px,y,y<0?(y===-a?'#ffffff':'#e8f6fc'):y<b*.5?'#a8d8ec':'#7fbcd8');}};
+  berg(POL.x0+90,40,16,40);berg(POL.x0+260,30,10,30);
+  // pared helada al final
+  for(let x=WORLD_W-24;x<TW;x++)for(let y=-30;y<gy(x)+4;y++)P(x,y,hash(x,y)<.04?'#eef8fc':y<0?'#d4eaf4':'#7fb4cc');
+  for(const f of (st&&st.fossils)||[])drawFossil(f);
+}
+function drawFossil(f){
+  if(!tctx)return;const s=st.sp.find(q=>q.id===f.sp);if(!s)return;
+  let spr=fossilSpr.get(s.id);if(!spr){spr=makeFossil(s.plan,s.g);fossilSpr.set(s.id,spr);}
+  tctx.save();tctx.globalAlpha=.55;tctx.translate(Math.round(f.x),Math.round(f.y-TY0));if(f.r)tctx.rotate(f.r*.35);tctx.scale(f.f,1);tctx.drawImage(spr,-spr.width/2|0,-spr.height/2|0);tctx.restore();
+}
+
+/* ================= batería, carga y tiempo ================= */
+let bat={level:.85,charging:false,real:false},simCharge=null;
+const CFG_KEY='mar_cfg';let cfg={loc:null,mode:'auto',hud:true};
+try{Object.assign(cfg,JSON.parse(localStorage.getItem(CFG_KEY)||'{}'));}catch(e){}
+const saveCfg=()=>{try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}catch(e){}};
+const charging=()=>simCharge!=null?simCharge:bat.charging;
+let sparkT=0,lastCharging=null;
+function onCharge(on){
+  if(lastCharging===on)return;const first=lastCharging===null;lastCharging=on;if(first||!st)return;
+  if(on){sparkT=Date.now();logE('carga','Cargador conectado: el submarino enciende el turbo y suelta nutrientes. Los bichos se acercan.');}
+  else logE('carga','Cargador desconectado: el submarino vuelve al ritmo normal.');
+}
+try{navigator.getBattery&&navigator.getBattery().then(b=>{const u=()=>{bat.level=b.level;bat.charging=b.charging;bat.real=true;onCharge(charging());};u();
+  b.addEventListener('levelchange',u);b.addEventListener('chargingchange',u);});}catch(e){}
+const subBat=()=>bat.real?bat.level:.85;
+function hourOf(t){const d=new Date(t);return d.getHours()+d.getMinutes()/60+d.getSeconds()/3600;}
+let wxLive={cat:'despejado',code:0,temp:18,wind:8,cloud:0,precip:0,src:'sin datos',ts:0};
+try{const j=JSON.parse(localStorage.getItem('mar_wx')||'null');if(j)wxLive=j;}catch(e){}
+const CATS={despejado:{i:'☀️',t:'Despejado'},nublado:{i:'☁️',t:'Nublado'},niebla:{i:'🌫️',t:'Niebla'},lluvia:{i:'🌧️',t:'Lluvia'},tormenta:{i:'⛈️',t:'Tormenta'},nieve:{i:'❄️',t:'Nieve'}};
+function catOf(code){return code<=1?'despejado':code<=3?'nublado':code<=48?'niebla':code<=67||(code>=80&&code<=82)?'lluvia':code<=77||code===85||code===86?'nieve':code>=95?'tormenta':'nublado';}
+let WX={cat:'despejado',int:0,wind:8,temp:18,light:1,cloud:0};
+function computeWX(){
+  const before=WX&&WX.cat;
+  const cat=cfg.mode==='auto'?wxLive.cat:cfg.mode,manual=cfg.mode!=='auto';
+  const int=cat==='tormenta'?1:cat==='lluvia'?(manual?.6:clamp((wxLive.precip||1)/4,.25,1)):cat==='nieve'?.6:0;
+  const cloud=cat==='despejado'?(manual?0:clamp((wxLive.cloud||0)/100,0,.4)):cat==='nublado'?(manual?.8:clamp((wxLive.cloud||70)/100,.5,1)):1;
+  const wind=manual?(cat==='tormenta'?45:cat==='lluvia'?18:8):(wxLive.wind||8);
+  const light={despejado:1-cloud*.2,nublado:1-cloud*.38,niebla:.6,lluvia:.55,tormenta:.35,nieve:.6}[cat];
+  WX={cat,int,wind:cat==='tormenta'?Math.max(wind,35):wind,temp:manual?(cat==='nieve'?-1:cat==='tormenta'?14:18):wxLive.temp,light,cloud};
+  try{if(sub&&before&&before!==cat){wxMsg={t:performance.now(),txt:`${CATS[cat].t}${cfg.loc&&cfg.mode==='auto'?' en '+cfg.loc.name:''} · ${Math.round(WX.temp)} °C`};sub.peek=55;}}catch(e){}
+}
+computeWX();
+/* ---- cielo real: sol, luna y mareas para tu ubicación ---- */
+const RAD=Math.PI/180,SYN=29.530588853;
+const wrap180=a=>((a+180)%360+360)%360-180;
+let AST=null,ASTt=0;
+function astro(t){
+  if(AST&&Math.abs(t-ASTt)<20000)return AST;
+  const loc=cfg.loc||{lat:40.417,lon:-3.704},n=t/86400000+2440587.5-2451545.0,phi=loc.lat*RAD;
+  const eps=(23.439-4e-7*n)*RAD;
+  const L=(280.46+.9856474*n)%360,g=((357.528+.9856003*n)%360)*RAD,lam=(L+1.915*Math.sin(g)+.02*Math.sin(2*g))*RAD;
+  const ra=Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam)),dec=Math.asin(Math.sin(eps)*Math.sin(lam));
+  const LST=((18.697374558+24.06570982441908*n)%24)*15*RAD+loc.lon*RAD;
+  const Hs=LST-ra,alt=Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(Hs));
+  const Lm=(218.316+13.176396*n)*RAD,Mm=(134.963+13.064993*n)*RAD,F=(93.272+13.22935*n)*RAD;
+  const lonM=Lm+6.289*RAD*Math.sin(Mm),latM=5.128*RAD*Math.sin(F);
+  const raM=Math.atan2(Math.sin(lonM)*Math.cos(eps)-Math.tan(latM)*Math.sin(eps),Math.cos(lonM));
+  const decM=Math.asin(Math.sin(latM)*Math.cos(eps)+Math.cos(latM)*Math.sin(eps)*Math.sin(lonM));
+  const Hm=LST-raM,altM=Math.asin(Math.sin(phi)*Math.sin(decM)+Math.cos(phi)*Math.cos(decM)*Math.cos(Hm));
+  const age=((n-5.1)%SYN+SYN)%SYN,illum=(1-Math.cos(2*Math.PI*age/SYN))/2;
+  const spring=.65+.35*Math.abs(Math.cos(2*Math.PI*age/SYN));
+  AST={alt:alt/RAD,H:wrap180(Hs/RAD),altM:altM/RAD,HM:wrap180(Hm/RAD),age,illum,
+    tide:Math.cos(2*Hm)*spring,spring,moonLight:illum*clamp(altM/RAD/25,0,1)};
+  ASTt=t;return AST;
+}
+function sunlight(t){const a=astro(t).alt;return smooth((a+6)/14);}
+function duskOf(t){const a=astro(t).alt;return Math.exp(-(((a-1)/5)**2));}
+function moonPhaseName(age){const f=age/SYN;return f<.03||f>.97?'luna nueva':f<.22?'creciente':f<.28?'cuarto creciente':f<.47?'gibosa creciente':f<.53?'luna llena':f<.72?'gibosa menguante':f<.78?'cuarto menguante':'menguante';}
+// marea: hasta ±3 px (unos 6 m a la escala del mapa); el mar polar, bajo el hielo, no se mueve
+let SEA0=0;
+const TIDE_AMP=3;
+function updateTide(t){SEA0=-astro(t).tide*TIDE_AMP;}
+function seaAt(x){return SEA0*clamp((ICE0-80-x)/240,0,1);}
+
+/* ---- estaciones con la fecha real (hemisferio según tu ubicación) ---- */
+const gss=(d,m,s)=>{let x=((d-m)%365+365)%365;if(x>182)x-=365;return Math.exp(-(x*x)/(2*s*s));};
+let SEA_={t:0};
+function season(t){
+  if(Math.abs(t-SEA_.t)<60000)return SEA_;
+  const d=new Date(t),y0=Date.UTC(d.getUTCFullYear(),0,1);let doy=(t-y0)/86400000;
+  const south=(cfg.loc&&cfg.loc.lat<0);if(south)doy=(doy+182.5)%365;
+  const warm=Math.cos(2*Math.PI*(doy-227)/365);          // +1 a mediados de agosto (agua más caliente), -1 en febrero
+  const ice=Math.cos(2*Math.PI*(doy-70)/365);            // +1 en marzo (máximo de hielo), -1 en septiembre
+  const bloomT=.65+.85*gss(doy,118,24)+.35*gss(doy,285,18); // floración de primavera y otra pequeña en otoño
+  const bloomP=.3+1.5*gss(doy,190,32);                   // en el polo, todo en verano
+  const kelp=.78+.22*Math.cos(2*Math.PI*(doy-200)/365);  // el kelp es más alto en verano; los temporales de invierno lo rompen
+  const name=doy<79||doy>=355?'invierno':doy<172?'primavera':doy<266?'verano':'otoño';
+  const m=d.getMonth()+(south?6:0);
+  SEA_={t,doy,warm,ice,bloomT,bloomP,kelp,name,month:m%12};
+  ICE0=Math.round(ICE_BASE-Math.max(0,ice)*230+Math.max(0,-ice)*170);
+  return SEA_;
+}
+function daylight(t){return sunlight(t)*WX.light;}
+// Pide JSON a internet. Dentro del lanzador de Linux lo hace el propio lanzador (sin problemas de permisos del navegador).
+const PEND={};let PID=0;
+window.__reply=(id,ok,txt)=>{const p=PEND[id];if(!p)return;delete PEND[id];if(ok){try{p.res(JSON.parse(txt));}catch(e){p.rej(e);}}else p.rej(new Error(txt));};
+function getJSON(url){
+  const h=window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.mar;
+  if(h)return new Promise((res,rej)=>{const id=++PID;PEND[id]={res,rej};h.postMessage(JSON.stringify({id,url}));setTimeout(()=>{if(PEND[id]){delete PEND[id];rej(new Error('tiempo agotado'));}},20000);});
+  return fetch(url).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+}
+let wxMsg=null;
+async function fetchWX(){
+  if(!cfg.loc)return;
+  try{
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${cfg.loc.lat.toFixed(3)}&longitude=${cfg.loc.lon.toFixed(3)}&current=temperature_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,is_day&timezone=auto`;
+    const j=await getJSON(u);const c=j.current;const prev=wxLive.cat;
+    wxLive={cat:catOf(c.weather_code),code:c.weather_code,temp:c.temperature_2m,wind:c.wind_speed_10m,cloud:c.cloud_cover,precip:c.precipitation,src:'Open-Meteo',ts:Date.now()};
+    try{localStorage.setItem('mar_wx',JSON.stringify(wxLive));}catch(e){}
+    if(st&&prev!==wxLive.cat&&cfg.mode==='auto'){logE('tiempo',`${CATS[wxLive.cat].i} En ${cfg.loc.name}: ${CATS[wxLive.cat].t.toLowerCase()}, ${Math.round(wxLive.temp)} °C.`);}
+    console.log('tiempo',cfg.loc.name,wxLive.cat,wxLive.temp);
+  }catch(e){console.log('tiempo: error',String(e));wxLive.src='sin conexión (en la vista previa de Claude no se puede consultar; en el fondo de pantalla sí)';}
+  computeWX();
+}
+async function geocode(q){
+  const j=await getJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=es`);if(!j.results||!j.results.length)throw new Error('no');
+  const x=j.results[0];return {name:x.name+(x.admin1?', '+x.admin1:''),lat:x.latitude,lon:x.longitude};
+}
+function initLoc(){
+  if(cfg.loc){fetchWX();return;}
+  const fallback=()=>{if(!cfg.loc){cfg.loc={name:'Madrid',lat:40.417,lon:-3.704,auto:true};saveCfg();fetchWX();}};
+  try{navigator.geolocation.getCurrentPosition(p=>{cfg.loc={name:'tu ubicación',lat:p.coords.latitude,lon:p.coords.longitude};saveCfg();fetchWX();},fallback,{timeout:8000});}catch(e){fallback();}
+  setTimeout(fallback,9000);
+}
+setInterval(fetchWX,15*60e3);
+
+/* ================= submarino y cámara ================= */
+let sub=null;const cam={x:0,y:0,manual:0};
+function initSub(){
+  const s=st.sub||{x:BI.arrecife.cx,y:60,dist:0};
+  sub={x:s.x,y:s.y,vx:0,vy:0,dir:1,tx:s.x,ty:s.y,state:'obs',ox:s.x,oy:s.y,wait:R(10,30),ping:0,fr:0,follow:null,dist:s.dist||0,poi:null};
+  cam.x=sub.x;cam.y=sub.y;
+}
+function subLimits(x){let m=1e9;for(let k=-40;k<=40;k+=4)m=Math.min(m,floorAt(x+k));return [iceAt(x)?16:seaAt(x)+5,m-16];}
+function subSafeY(x,y){const [a,b]=subLimits(x);return clamp(y,a,b);}
+function pickPOI(){
+  const opts=[];
+  for(const b of BIOMES){const x=clamp(b.cx+R(-b.w*.3,b.w*.3),MINX+30,MAXX-30);const fl=floorAt(x);opts.push({x,y:clamp(fl*R(.35,.75),14,fl-18),nm:b.nm,w:1});}
+  opts.push({x:BI.naufragio.cx,y:floorAt(BI.naufragio.cx)-30,nm:'el naufragio',w:1});
+  if(VENTS.length){const v=pick(VENTS);opts.push({x:v.x,y:v.y-30,nm:'las fumarolas',w:1});}
+  const rare=st.cr.filter(c=>['whale','orca','angler','turtle','octopus','seahorse','otter','penguin','shark','moray'].includes(c.plan));
+  for(let k=0;k<4&&rare.length;k++){const c=pick(rare);opts.push({x:c.x,y:c.y,follow:c.id,nm:PLANS[c.plan].noun,w:2});}
+  let o=pick(opts);for(let k=0;k<3;k++){const q=pick(opts);if(Math.abs(q.x-sub.x)>Math.abs(o.x-sub.x)*(.5+rnd()))o=q;}
+  return o;
+}
+function updateSub(dt){
+  const b=subBat(),ch=charging(),low=b<.15&&!ch;
+  sub.fr+=dt*(ch?14:low?4:8);
+  if(sub.follow){const c=st.cr.find(q=>q.id===sub.follow);if(c){sub.tx=c.x-c.dir*30;sub.ty=c.y-8;if(sub.state==='obs'&&sub.wait<=0&&!sub.userFollow){sub.follow=null;}}else{sub.follow=null;sub.userFollow=false;}}
+  if(sub.peek>0){sub.peek-=dt;if(!sub.peekX){sub.peekX=sub.x;}sub.tx=sub.peekX+Math.sin(Date.now()/6000)*20;sub.ty=iceAt(sub.x)?20:10;sub.state='obs';sub.wait=Math.max(sub.wait,5);sub.ox=sub.tx;sub.oy=sub.ty;if(sub.peek<=0)sub.peekX=null;}
+  if(low){sub.ty=8;sub.state='go';}
+  if(sub.state==='obs'){sub.wait-=dt;if(!sub.follow){sub.tx=sub.ox+Math.sin(Date.now()/9000)*24;sub.ty=sub.oy+Math.sin(Date.now()/7000)*8;}
+    if(sub.wait<=0&&!sub.userFollow){const p=pickPOI();sub.poi=p;sub.tx=p.x;sub.ty=p.y;sub.follow=p.follow||null;sub.state='go';}}
+  else if(Math.hypot(sub.tx-sub.x,sub.ty-sub.y)<10&&!low){sub.state='obs';sub.wait=R(35,100);sub.ox=sub.x;sub.oy=sub.y;}
+  const spd=(sub.state==='go'?10:4)*(ch?1.7:low?.5:1);
+  const ty=subSafeY(sub.tx,sub.ty),dx=sub.tx-sub.x,dy=ty-sub.y,d=Math.hypot(dx,dy)||1;
+  const ax=dx/d*spd*Math.min(1,d/20),ay=dy/d*spd*.7*Math.min(1,d/20);
+  sub.vx+=(ax-sub.vx)*Math.min(1,dt*.8);sub.vy+=(ay-sub.vy)*Math.min(1,dt*.8);
+  const px=sub.x;sub.x=clamp(sub.x+sub.vx*dt,MINX+20,MAXX-20);sub.y+=sub.vy*dt;{const [a,b]=subLimits(sub.x);if(sub.y>b)sub.y-=Math.min(sub.y-b,18*dt);if(sub.y<a)sub.y+=Math.min(a-sub.y,18*dt);}sub.dist+=Math.abs(sub.x-px);
+  if(sub.vx>2)sub.dir=1;else if(sub.vx<-2)sub.dir=-1;
+  sub.look=lerp(sub.look==null?sub.dir:sub.look,sub.dir,Math.min(1,dt*.35));
+  sub.ping-=dt;if(sub.ping<=0)sub.ping=R(6,12);
+  if(rnd()<dt*(ch?20:6))bubbles.push({x:sub.x-sub.dir*17,y:sub.y+R(-2,2),v:R(6,12),s:R(0,6),sub:1});
+  st.sub={x:sub.x,y:sub.y,dist:sub.dist};
+
+}
+function updateCam(dt){
+  // cámara: el objetivo se suaviza y la cámara lo sigue como un muelle amortiguado
+  if(cam.manual>0){cam.manual-=dt;cam.vx=cam.vy=0;}
+  else{
+    let fl=0;for(let k=-W*.5;k<=W*.5;k+=8)fl+=floorAt(sub.x+k);fl/=Math.floor(W/8)+1;
+    const wantX=sub.x+sub.look*W*.12,wantY=Math.max(Math.min(sub.y+(H>W?H*.12:0),fl+Math.min(90,H*.28)-H/2),sub.y-H*.38);
+    cam.tx=cam.tx==null?wantX:lerp(cam.tx,wantX,Math.min(1,dt*.6));cam.ty=cam.ty==null?wantY:lerp(cam.ty,wantY,Math.min(1,dt*.4));
+    const k=1.6,c=2*Math.sqrt(k);cam.vx=(cam.vx||0)+((cam.tx-cam.x)*k-(cam.vx||0)*c)*dt;cam.vy=(cam.vy||0)+((cam.ty-cam.y)*k-(cam.vy||0)*c)*dt;
+    const mv=Math.hypot(cam.vx,cam.vy),mx=30;if(mv>mx){cam.vx*=mx/mv;cam.vy*=mx/mv;}
+    cam.x+=cam.vx*dt;cam.y+=cam.vy*dt;
+  }
+  cam.x=clamp(cam.x,W/2,WORLD_W-W/2);cam.y=clamp(cam.y,Math.min(TY0+H/2,40-H/2),WORLD_H-H/2-2);
+}
+
+/* ================= fauna nativa por bioma ================= */
+const NATIVES={
+  manglar:[['fish',10,()=>({size:R(1.8,2.6),hue:R(80,120),sat:.4,pat:0,depth:.02})],['crab',6,()=>({hue:R(10,30)})],['fish',6,()=>({size:R(2.5,3.5),hue:R(40,55),sat:.5,lum:.5,pat:2,depth:.03})]],
+  arrecife:[['fish',8,()=>({hue:R(18,28),sat:.95,lum:.55,pat:1,size:R(2.2,3),len:1.6,depth:.06})],['fish',10,()=>({hue:R(195,215),sat:.9,lum:.55,pat:3,size:R(2.5,4),depth:.08})],
+    ['fish',6,()=>({hue:R(50,58),sat:.95,lum:.6,pat:0,len:1.4,fin:1,depth:.07})],['turtle',2],['moray',2],['octopus',1],['ray',1]],
+  posidonia:[['fish',9,()=>({hue:R(195,210),sat:.15,lum:.65,pat:1,depth:.07})],['seahorse',6],['squid',3,()=>({size:R(3,4),len:1.8,hue:R(25,40),sat:.4,pat:2,depth:.07})],['octopus',1],['crab',3]],
+  naufragio:[['fish',4,()=>({size:R(4.5,5.5),hue:R(25,35),sat:.45,lum:.4,pat:2,depth:.17})],['fish',8,()=>({size:R(2,3),hue:R(160,180),sat:.6,depth:.15})],['moray',2],['octopus',1],['crab',4]],
+  kelp:[['fish',8,()=>({hue:R(0,10),sat:.7,lum:.45,fin:3,depth:.15})],['otter',3],['urchin',10],['seal',2],['crab',3],['fish',8,()=>({hue:R(30,45),sat:.3,lum:.55,depth:.1})]],
+  abierto:[['fish',18,()=>({size:R(2,2.6),len:2.3,hue:R(205,215),sat:.2,lum:.62,pat:0,speed:R(18,26),depth:.08})],['shark',2],['jelly',6,()=>({depth:.15})],['squid',4,()=>({depth:.25})],
+    ['whale',1,()=>({depth:.12})],['turtle',1],['fish',5,()=>({size:R(4.5,5.5),len:2.4,hue:R(215,225),sat:.5,lum:.35,speed:R(26,30),diet:.72,depth:.15})]],
+  abismo:[['angler',4,()=>({depth:R(.8,.95)})],['fish',12,()=>({size:R(2,2.8),hue:R(230,250),sat:.4,lum:.3,glow:R(.7,1),depth:R(.75,.9)})],['squid',2,()=>({size:R(7.5,9),len:2.4,hue:355,sat:.6,glow:.3,depth:.8})],
+    ['jelly',4,()=>({glow:R(.8,1),hue:R(160,200),depth:.75})],['crab',5,()=>({hue:0,sat:.1,lum:.75,depth:.98})]],
+  polar:[['penguin',6],['seal',3],['orca',3,()=>({depth:.1})],['fish',10,()=>({hue:R(185,195),sat:.15,lum:.7,depth:.2})],['jelly',2,()=>({depth:.2})]],
+};
+function boundsAt(plan,x,g,c){
+  const fl=floorAt(x),ice=iceAt(x);let lo,hi;
+  if(FLOOR_PLANS.has(plan)&&!(c&&c.jet>0)){lo=fl-1.5;hi=fl-.5;}
+  else if(plan==='ray'){lo=fl-16;hi=fl-3;}
+  else if(c&&c.onIce){lo=hi=-3;}
+  else if(plan==='whale'||plan==='orca'){lo=ice?10:seaAt(x)+g.size*.4;hi=fl-g.size*.6;}
+  else if(BREATHERS.has(plan)){lo=ice?7:seaAt(x);hi=fl-2;}
+  else{lo=ice?7:seaAt(x)+3;hi=fl-3;}
+  if(hi<lo)hi=lo;
+  return [lo,hi];
+}
+function seedWorld(){
+  for(const b of BIOMES)for(const [plan,n,ov] of NATIVES[b.id])arrive(plan,b,n,ov?ov():null,true);
+  logE('llegada','Empieza la expedición: el submarino se sumerge en un mar con ocho biomas.');
+}
+function arrive(plan,b,n,over,quiet){
+  const P=PLANS[plan],k=n||P.group;
+  const x=clamp(R(b.x0+b.w*.15,b.x1-b.w*.15),MINX+5,MAXX-5);
+  let g=randGenome(plan,over||{});
+  const [lo,hi]=boundsAt(plan,x,g);
+  if(!over||over.depth==null)g.depth=clamp((FLOOR_PLANS.has(plan)||plan==='ray'?hi:lerp(lo,Math.min(hi,lo+160),R(.1,.7)))/1150,0,1);
+  const y0=clamp(g.depth*1150,lo,hi);
+  g.temp=clamp(tempAt(x,y0)+R(-.03,.03),0,1);
+  const s=newSpecies(plan,g,null,genusName(plan),b.id);
+  for(let i=0;i<k;i++){
+    const cg=mutate(g,plan),xx=clamp(x+R(-30,30),MINX,MAXX),[l2,h2]=boundsAt(plan,xx,cg);
+    const c=spawn(plan,cg,s.id,0,xx,clamp(y0+R(-10,10),l2,h2),P.emax*.8*(cg.size/midSize(plan))**2);
+    c.age=cg.life*R(.15,.4);
+  }
+  if(!quiet){const pl=k>1?(plan==='fish'?'un banco de peces':`un grupo de ${P.nm.toLowerCase()}`):`un${FEM.includes(P.noun)?'a':''} ${P.noun}`;
+    logE('llegada',`Llega ${pl} a ${b.nm.toLowerCase().startsWith('mar')||b.id==='naufragio'?'el ':'el '}${b.nm}: <b>${s.name}</b> (${s.common}).`);}
+  return s;
+}
+
+/* ================= simulación ================= */
+let food=[],fx=[],LIVE=true,gullT=0,gullX=0,NIGHT=0;
+const FOODCAP=4200;
+function puff(x,y,col,n,life){if(!LIVE)return;for(let i=0;i<n;i++)fx.push({x,y,vx:R(-8,8),vy:R(-8,4),t:life||R(.4,.9),col,g:col==='#140c16'?0:6});}
+function canPrey(c,p){
+  if(p===c||p.dead||p.leaving||p.onIce)return false;
+  const a=area(c),b=area(p),q=p.plan;
+  switch(c.plan){
+    case 'fish':return c.g.diet>.6&&(q==='fish'||q==='squid')&&p.sp!==c.sp&&b<a*.4;
+    case 'shark':return (q==='fish'||q==='squid'||q==='ray'||q==='seal'||q==='penguin')&&b<a*.55;
+    case 'squid':return q==='fish'&&b<a*.35;
+    case 'ray':return q==='crab'&&p.g.size<c.g.size*.85;
+    case 'turtle':return q==='jelly';
+    case 'jelly':return q==='fish'&&b<a*.45;
+    case 'octopus':return q==='crab'&&p.g.size<c.g.size*.9;
+    case 'angler':return (q==='fish'||q==='squid'||q==='crab')&&b<a*.8;
+    case 'penguin':return (q==='fish'&&b<a*.5)||(q==='squid'&&b<a*.4);
+    case 'seal':return (q==='fish'&&b<a*.6)||(q==='squid'&&b<a*.5)||(q==='penguin'&&c.g.size>5.6);
+    case 'orca':return q==='seal'||(q==='fish'&&b>3)||(q==='shark'&&b<a*.7)||(q==='squid'&&b<a*.5);
+    case 'otter':return q==='urchin'||(q==='crab'&&p.g.size<4.5);
+    case 'moray':return (q==='fish'&&b<a*.6)||(q==='octopus'&&b<a*.5)||(q==='squid'&&b<a*.5);
+  }
+  return false;
+}
+const BCAP={fish:42,crab:8,urchin:28,jelly:8,seahorse:14,squid:8,octopus:4};
+const HUNTERS=new Set(['shark','squid','ray','turtle','octopus','angler','penguin','seal','orca','otter','moray']);
+const hunter=c=>HUNTERS.has(c.plan)||(c.plan==='fish'&&c.g.diet>.6);
+function foodEff(c,f){
+  const k=f.k;
+  switch(c.plan){
+    case 'fish':return k==='p'||(k==='d'&&c.g.depth>.6)?1-c.g.diet*.85:0;
+    case 'seahorse':return k==='p'?2:0;
+    case 'squid':return k==='p'?.8:0;
+    case 'whale':return k==='p'?1:0;
+    case 'crab':return k!=='p'?1:0;
+    case 'urchin':return k==='d'?1:0;
+    case 'ray':return k!=='p'?1:0;
+    case 'turtle':return k==='d'?1:k==='p'?.5:0;
+    case 'shark':return k==='c'?1:0;
+    case 'jelly':return k==='p'?1:0;
+    case 'octopus':return k==='c'?1:k==='d'?.3:0;
+    case 'penguin':return k==='p'?.5:0;
+  }
+  return 0;
+}
+const wxCost=c=>(c.plan==='jelly'&&(WX.cat==='lluvia'||WX.cat==='tormenta')?.6:1)*(WX.temp<10?.9:1)*(WX.cat==='tormenta'&&c.y<150&&c.plan!=='jelly'?1.2:1);
+function cost(c){
+  const P=PLANS[c.plan],sp=rngOf(c.plan,'speed')[1],m=comfort(c.g,c.x,c.y)*(c.g.depth>.5&&MIGR.has(c.plan)?.3:1);
+  let k=emax(c)/P.starve*(.7+.6*c.g.speed/sp)*(1+(c.mig!=null?1:6)*m*m)+c.g.glow*.02;
+  if((c.plan==='fish'||c.plan==='crab')&&c.y<200)k*=.55+.45*DL;
+  if(c.onIce)k*=.5;
+  return k*wxCost(c);
+}
+function swim(c,tx,ty,spd,dt,lo,hi){
+  const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy)||1,slow=d<6?d/6:1;
+  const dvx=dx/d*spd*slow,dvy=dy/d*spd*slow*.65;
+  let sx=dvx-c.vx,sy=dvy-c.vy;const sm=Math.hypot(sx,sy),acc=spd*1.8*dt+.02;
+  if(sm>acc){sx*=acc/sm;sy*=acc/sm;}
+  c.vx+=sx;c.vy+=sy;
+  const mv=Math.hypot(c.vx,c.vy)*dt;
+  if(mv>=d){c.x=tx;c.y=ty;}else{c.x+=c.vx*dt;c.y+=c.vy*dt;}
+  const xl=c.leaving?MINX-80:MINX,xh=c.leaving?MAXX+80:MAXX;
+  if(c.x<xl){c.x=xl;c.vx=Math.max(0,c.vx);}if(c.x>xh){c.x=xh;c.vx=Math.min(0,c.vx);}
+  const [l2,h2]=c.leaving?[lo,hi]:boundsAt(c.plan,c.x,c.g,c);
+  const L=Math.min(lo,l2),Hh=Math.min(hi,h2);
+  if(c.y<L){c.y=L;c.vy=Math.max(0,c.vy);}if(c.y>Hh){c.y=Hh;c.vy=Math.min(0,c.vy);}
+  const th=spd*.2+.4;if(c.vx>th)c.dir=1;else if(c.vx<-th)c.dir=-1;
+}
+function pickWander(c,lo,hi){
+  const g=c.g;let best=null,bs=1e9;
+  const range=c.plan==='seahorse'||FLOOR_PLANS.has(c.plan)?60:c.plan==='moray'?40:c.mig!=null?260:160;
+  for(let k=0;k<5;k++){
+    const x=clamp(c.x+R(-range,range),MINX,MAXX),[l,h]=boundsAt(c.plan,x,g,c);
+    const y=FLOOR_PLANS.has(c.plan)?h:clamp(prefY(g,x,c.plan)+gauss()*40,l,h);
+    let s=comfort(g,x,y)+Math.abs(clamp(prefY(g,x,c.plan),l,h)-prefY(g,x,c.plan))/1500;
+    if(c.mig!=null)s+=Math.abs(x-c.mig)/300;
+    if(c.plan==='otter'&&biomeIdx(x)!==BI.kelp.i)s+=.3;
+    if((c.plan==='penguin'||c.plan==='seal'||c.plan==='orca')&&x<POL.x0-200)s+=.2;
+    if(s<bs){bs=s;best=[x,y];}
+  }
+  return best;
+}
+let STEP_I=0;
+function step(dt,t){
+  st.t=t;DL=daylight(t);STEP_I++;updateTide(t);NIGHT=1-sunlight(t);const SS=season(t);
+  const dl=DL,night=1-dl;
+  const rainy=WX.cat==='lluvia'||WX.cat==='tormenta',storm=WX.cat==='tormenta',cold=WX.temp<10,warm=WX.temp>24;
+  tempOff=clamp((15-WX.temp)/90,-.12,.12)-SS.warm*.05;
+  const curr=storm?Math.sin(t/1000*.07)*WX.wind*.25:WX.wind>25?Math.sin(t/1000*.05)*(WX.wind-25)*.12:0;
+  // plancton por bioma
+  const fB=new Array(BIOMES.length).fill(0),zB=new Array(BIOMES.length).fill(0);for(const f of food)if(!f.gone){if(f.zoo)zB[biomeIdx(f.x)]++;else fB[biomeIdx(f.x)]++;}
+  for(const b of BIOMES){if(fB[b.i]>b.w*.9){b.acc=0;continue;}
+    const sb=b.id==='polar'?SS.bloomP:(b.id==='manglar'||b.id==='arrecife'||b.id==='abismo')?1:SS.bloomT;
+    b.acc=(b.acc||0)+dt*(1.3+2.8*dl)*b.prod*sb*(b.w/300)*(warm?1.15:cold?.8:1);
+    while(b.acc>=1){b.acc--;if(food.length>=FOODCAP)break;const x=R(Math.max(b.x0,MINX),Math.min(b.x1,MAXX)),fl=floorAt(x);if(fl<8)continue;
+      food.push({x,y:seaAt(x)+2+Math.min(fl-4,170)*rnd()**1.4,k:'p',e:10,v:R(1,2.5),a:0});}
+    if(rnd()<dt*.25*(b.w/400)&&food.length<FOODCAP){const x=R(Math.max(b.x0,MINX),Math.min(b.x1,MAXX));food.push({x,y:floorAt(x)-1,k:'d',e:8,a:0});}
+  }
+  // zooplancton profundo: de día abajo, de noche sube (migración vertical)
+  for(const b of [BI.abierto,BI.abismo]){b.zacc=(b.zacc||0)+dt*.5*(b.w/400);while(b.zacc>=1){b.zacc--;if(food.length>=FOODCAP||zB[b.i]>170)break;zB[b.i]++;const x=R(b.x0+30,b.x1-30),fl=floorAt(x),zb=Math.min(fl-20,R(380,760)),zt=R(15,110);
+    food.push({x,y:NIGHT>.5?zt:zb,k:'p',e:10,v:0,a:0,zoo:1,zb,zt});}}
+  // fumarolas: quimiosíntesis
+  for(const v of VENTS)if(rnd()<dt*1.4&&food.length<FOODCAP)food.push({x:v.x+R(-5,5),y:v.y-R(4,14),k:'p',e:10,v:R(.4,1),a:0,vent:1});
+  // lluvia que acaba
+  if(rainy)st.rainT=(st.rainT||0)+dt;else{if(st.rainT>600){logE('tiempo','Ha dejado de llover: el plancton florece cerca de la superficie.');for(let i=0;i<120&&food.length<FOODCAP;i++){const x=R(MINX,ICE0);food.push({x,y:R(2,30),k:'p',e:10,v:R(.5,1.5),a:0});}}st.rainT=0;}
+  // bomba de nutrientes del submarino (cargando)
+  if(LIVE&&charging()&&sub&&rnd()<dt*5&&food.length<FOODCAP)food.push({x:sub.x+R(-14,14),y:sub.y+R(-4,8),k:'p',e:10,v:R(.5,2),a:0});
+  // comida
+  for(const f of food){
+    if(f.gone)continue;
+    if(f.k==='p'){f.a+=dt;if(f.a>260){f.gone=true;continue;}if(curr&&f.y<150)f.x=clamp(f.x+curr*dt*.6,MINX,MAXX);if(f.zoo){const want=NIGHT>.5?f.zt:f.zb;f.y+=clamp(want-f.y,-1,1)*(NIGHT>.5?9:7)*dt+Math.sin(t/1000*.3+f.x)*dt;f.x+=Math.sin(t/2000+f.y*.1)*dt*.6;if(f.a>900)f.gone=true;continue;}
+      f.y+=f.v*dt;if(f.y<seaAt(f.x)+1)f.y=seaAt(f.x)+1;if(iceAt(f.x)&&f.y<6)f.y=6;const gy=floorAt(f.x)-1;if(f.y>=gy){f.k='d';f.y=gy;f.e=8;f.a=0;}}
+    else{f.a+=dt;if((f.k==='d'&&f.a>180)||(f.k==='c'&&f.a>420))f.gone=true;}
+  }
+  // cadáveres
+  for(let i=st.corpses.length-1;i>=0;i--){const k=st.corpses[i];k.y+=4*dt;const gy=floorAt(k.x)-1;if(k.y>=gy){st.corpses.splice(i,1);food.push({x:k.x,y:gy,k:'c',e:k.e,a:0});}}
+  const cr=st.cr,n=cr.length;
+  buildGrid(cr,food);
+  const cnt={};for(const p of ORDER)cnt[p]=0;const cntB={};for(const c of cr){cnt[c.plan]++;c.bi=biomeIdx(c.x);const k=c.bi+c.plan;cntB[k]=(cntB[k]||0)+1;}
+  const POPCAP=560;
+  const born=[],bornCnt={};
+  for(let i=0;i<n;i++){
+    const c=cr[i];if(c.dead)continue;const g=c.g,P=PLANS[c.plan];
+    if(c._ck==null||(STEP_I+c.id)%4===0||!LIVE)c._ck=cost(c);
+    c.age+=dt;c.e-=c._ck*dt;if(c.cd>0)c.cd-=dt;if(c.rc>0)c.rc-=dt;if(c.lunge>0)c.lunge-=dt;if(c.jet>0)c.jet-=dt;
+    const em=emax(c),hungry=c.e<em*.75,lt=lightAt(c.y)*dl;
+    let sense=((lt>.25?48:14+g.glow*50*(1-lt)+lt*34)+g.size*2+(g.depth>.6?14:0))*(storm&&c.y<200?.6:WX.cat==='niebla'&&c.y<80?.85:1);
+    if(c.plan==='angler')sense=26;
+    if(NIGHT>.6&&(c.plan==='shark'||c.plan==='moray'||c.plan==='octopus'))sense*=1.45;
+    // peces de arrecife: de noche duermen escondidos cerca del fondo
+    const sleeper=c.plan==='fish'&&g.depth<.25&&g.diet<.6&&c.bi!=null&&c.bi<=3;
+    if(sleeper&&NIGHT>.72&&!c.sleep){c.sleep=true;c.slx=clamp(c.x+R(-12,12),MINX,MAXX);}else if(c.sleep&&(NIGHT<.6||!sleeper))c.sleep=false;
+    let [lo,hi]=boundsAt(c.plan,c.x,g,c);
+    let tx=null,ty=null,spd=g.speed*.45,tp=null,tf=null,best=1e9;
+    // visitantes que se van
+    if(P.visitor&&c.age>c.leave&&!c.leaving){c.leaving=true;c.ldir=c.x<(BI.abierto.cx)?-1:1;}
+    if(c.leaving){tx=c.ldir<0?MINX-90:MAXX+90;ty=c.y;spd=g.speed;}
+    // sobre el hielo (pingüinos y focas)
+    if(c.onIce&&!iceAt(c.x)){c.onIce=false;c.y=8;}
+    if(c.onIce){
+      c.iceT-=dt;c.o2=1;
+      if(c.iceT<=0||hungry){const hx=nearestHole(c.x);if(Math.abs(c.x-hx)<3){c.onIce=false;c.x=hx;c.y=8;c.vy=6;}else{c.x+=Math.sign(hx-c.x)*Math.min(Math.abs(hx-c.x),dt*4);c.dir=hx>c.x?1:-1;}}
+      else if(rnd()<dt*.2){c.dir=-c.dir;}else if(rnd()<dt*.5){const nx=c.x+c.dir*dt*3;if(iceAt(nx)&&iceAt(nx+c.dir*3))c.x=nx;}
+      c.ph+=dt*1.5;c.y=-3;
+      if(c.age>g.life)c.dead='vejez';else if(c.e<=0)c.dead='hambre';
+      continue;
+    }
+    if((c.plan==='penguin'||c.plan==='seal')&&!c.leaving&&c.x>ICE0&&!hungry&&c.e>em*.85&&!c.goIce&&rnd()<dt/90)c.goIce=true;
+    if(c.goIce){const hx=nearestHole(c.x);tx=hx;ty=1;spd=g.speed*.7;
+      if(Math.abs(c.x-hx)<4&&c.y<5){c.goIce=false;c.onIce=true;c.iceT=R(40,160);const side=rnd()<.5?-1:1;let nx=hx+side*R(6,18);if(!iceAt(nx))nx=hx-side*R(6,18);c.x=nx;c.y=-3;continue;}}
+    // respirar
+    if(P.breath&&!c.leaving&&!c.goIce){c.o2-=dt/P.breath;
+      if(c.o2<.25)c.br=true;
+      if(c.br){const bx=breathX(c.x);tx=bx===c.x?c.x+c.dir*25:bx;ty=seaAt(c.x)-4;spd=g.speed*.85;lo=Math.min(lo,iceAt(c.x)?7:seaAt(c.x));
+        if(c.y<=(iceAt(c.x)?7:seaAt(c.x)+1.5)&&!iceAt(c.x)){c.o2=Math.min(1,c.o2+dt*.35);if(c.plan==='whale'||c.plan==='orca')c.spout=1;if(c.o2>=1)c.br=false;}}}
+    if(c.spout>0)c.spout-=dt;
+    // nutria: flotar comiendo
+    if(c.plan==='otter'&&c.eating>0&&!c.br){c.eating-=dt;tx=c.x+c.dir*3;ty=seaAt(c.x);spd=2;}
+    // morena en su cueva
+    if(c.plan==='moray'&&NIGHT>.6&&hungry&&c.den!=null&&DENS[c.den]){c.atDen=false;if(!c.hunting){c.hunting=true;}}
+    else if(c.plan==='moray')c.hunting=false;
+    if(c.plan==='moray'&&!c.hunting){
+      if(c.den==null||!DENS[c.den]){let bd=1e9,bi=null;DENS.forEach((d,k)=>{if(d.taken&&d.taken!==c.id)return;const dd=Math.abs(d.x-c.x)+Math.abs(d.y-c.y);if(dd<bd&&dd<400){bd=dd;bi=k;}});if(bi!=null){c.den=bi;DENS[bi].taken=c.id;}}
+      const d=DENS[c.den];
+      if(d){
+        if(Math.hypot(d.x-c.x,d.y-c.y)>14&&!c.atDen){tx=d.x;ty=d.y;spd=g.speed*.6;}
+        else{
+          c.atDen=true;c.dir=d.dir;c.out=c.out==null?.3:c.out;
+          let tgt=null;
+          if(hungry&&!(c.cd>0)){const hx=d.x+d.dir*g.size*g.len*.6;near(headC,nextC,hx,d.y,16,j=>{const p=cr[j];if(!tgt&&canPrey(c,p)&&Math.hypot(p.x-hx,p.y-d.y)<16)tgt=p;});}
+          if(tgt){c.out=Math.min(1,c.out+dt*4);if(c.out>.9&&!(c.lunge>0)){c.lunge=1.5;if(rnd()<.5){tgt.dead='devorado';tgt.eatenBy='moray';c.e+=emax(tgt)*.7+8;c.cd=P.cd;puff(tgt.x,tgt.y,'#ffffff',5);}}}
+          else{c.out+=(.25+.15*Math.sin(t/1000*.5+c.id)-c.out)*Math.min(1,dt*2);}
+          c.x=d.x+d.dir*c.out*g.size*g.len*.55;c.y=d.y;c.ph+=dt*2;
+          if(c.age>g.life)c.dead='vejez';else if(c.e<=0)c.dead='hambre';
+          else if(c.e>em*g.fert&&c.age>g.life*.18&&!(c.rc>0)&&cnt.moray+(bornCnt.moray||0)<P.cap&&rnd()<dt/300){c.e*=.5;c.rc=g.life*.25;born.push(c);bornCnt.moray=(bornCnt.moray||0)+1;}
+          continue;
+        }
+      }
+    }
+    // caballito de mar agarrado a una planta
+    if(c.plan==='seahorse'){
+      const pl=c.anchor!=null?PLANTS[c.anchor]:null;
+      if(!pl||rnd()<dt/200){let bd=1e9,bi=null;for(let k=0;k<PLANTS.length;k++){const p=PLANTS[k];if(p.kind!=='pos'&&p.kind!=='grass')continue;const dd=Math.abs(p.x-c.x);if(dd<bd&&dd<120){bd=dd;bi=k;}}c.anchor=bi;c.ay=R(.2,.8);}
+      const p=c.anchor!=null?PLANTS[c.anchor]:null;
+      if(p){tx=p.x+1;ty=floorAt(p.x)-p.h*c.ay;spd=g.speed;}
+    }
+    // cazar / comer / huir / banco: una sola consulta de vecinos
+    let fx_=0,fy_=0,flee=false,ax=0,ay=0,avx=0,avy=0,kk=0,lure=null;
+    const isH=hunter(c)&&hungry&&!(c.cd>0)&&tx===null;
+    const rad=Math.max(isH?sense*1.1:0,30);
+    const think=!LIVE||(c.id+STEP_I)%3===0||!c._m;
+    if(!think){const m=c._m;fx_=m.fx;fy_=m.fy;flee=m.fl;ax=m.ax;ay=m.ay;avx=m.avx;avy=m.avy;kk=m.kk;lure=m.lu&&!m.lu.dead?m.lu:null;
+      if(isH&&m.tp&&!m.tp.dead&&canPrey(c,m.tp)){tp=m.tp;best=Math.hypot(tp.x-c.x,tp.y-c.y);}
+      if(flee){fx_=0;fy_=0;flee=false;for(const p of m.th){if(p.dead)continue;const dx=p.x-c.x,dy=p.y-c.y,d=Math.hypot(dx,dy),fr=FLOOR_PLANS.has(c.plan)?14:26;if(d<fr&&d>0){fx_-=dx/d*(fr-d);fy_-=dy/d*(fr-d);flee=true;}}}}
+    const th=[];
+    if(think)near(headC,nextC,c.x,c.y,rad,j=>{
+      const p=cr[j];if(p===c||p.dead)return;
+      const dx=p.x-c.x,dy=p.y-c.y,d=Math.hypot(dx,dy);
+      if(isH&&canPrey(c,p)){let dd=d;if(dd>7&&p.plan==='fish'&&inKelp(p))return;if(p.sleep&&dd>9)return;dd/=(1+p.g.glow*(1-lightAt(p.y)*dl)*1.5);if(dd<sense*1.1&&dd<best){best=dd;tp=p;}}
+      if(c.plan!=='whale'&&c.plan!=='orca'&&d<26&&d>0&&hunter(p)&&p.plan!=='jelly'&&p.plan!=='angler'&&canPrey(p,c)){const fr=FLOOR_PLANS.has(c.plan)?14:26;fx_-=dx/d*(fr-d);fy_-=dy/d*(fr-d);flee=true;th.push(p);}
+      if(c.plan==='fish'&&p.sp===c.sp&&d<22){ax+=p.x;ay+=p.y;avx+=p.vx;avy+=p.vy;kk++;}
+      if(p.plan==='angler'&&(c.plan==='fish'||c.plan==='squid')&&lightAt(c.y)*dl<.06&&d<45&&area(c)<area(p)*.8)lure=p;
+    });
+    if(think)c._m={fx:fx_,fy:fy_,fl:flee,ax,ay,avx,avy,kk,lu:lure,tp,th};
+    if(!tp&&c.plan==='otter'&&hungry&&!c.br&&!(c.cd>0)){let bd=110;near(headC,nextC,c.x,c.y+200,240,j=>{const p=cr[j];if(p.plan!=='urchin'||p.dead)return;const d=Math.abs(p.x-c.x);if(d<bd){bd=d;tp=p;}});}
+    if(tp){tx=tp.x;ty=tp.y;spd=g.speed;}
+    if(tx===null&&hungry&&c.plan!=='otter'&&!think&&c._tf&&!c._tf.gone&&foodEff(c,c._tf)){tf=c._tf;tx=tf.x;ty=tf.y;spd=g.speed*.8;}
+    if(tx===null&&hungry&&c.plan!=='otter'&&think){
+      near(headF,nextF,c.x,c.y,sense,j=>{const f=food[j];if(f.gone)return;const ef=foodEff(c,f);if(!ef)return;
+        const d=FLOOR_PLANS.has(c.plan)?Math.abs(f.x-c.x)+(f.k==='p'?999:0):Math.hypot(f.x-c.x,f.y-c.y);if(d<sense&&d<best){best=d;tf=f;}});
+      if(tf){tx=tf.x;ty=tf.y;spd=g.speed*.8;}c._tf=tf;
+    }
+    // deambular
+    if(tx===null){
+      c.wt-=dt;
+      if(c.wt<=0||Math.hypot(c.wx-c.x,c.wy-c.y)<3){
+        c.wt=R(5,14);const w=pickWander(c,lo,hi);c.wx=w[0];c.wy=w[1];
+        if(c.plan==='whale'&&rnd()<.5){near(headF,nextF,c.x,c.y,90,j=>{const f=food[j];if(f.k==='p'&&!f.gone&&rnd()<.1){c.wx=f.x;c.wy=f.y;}});}
+        if(FLOOR_PLANS.has(c.plan)&&rnd()<(storm?.8:rainy?.1:.3))c.idle=R(1.5,storm?8:5);
+        if(c.plan==='otter'&&!hungry){c.wy=seaAt(c.wx);}
+        if(storm&&c.plan==='fish'&&c.y<200){const ks=PLANTS.filter(q=>q.kind==='kelp'&&Math.abs(q.x-c.x)<150);if(ks.length)c.wx=pick(ks).x+R(-2,2);}
+        if(rainy&&c.plan==='fish'&&c.y<60)c.wy+=30;
+      }
+      tx=c.wx;ty=c.wy;
+      if(kk){tx=lerp(tx,ax/kk+avx/kk*1.2,.65);ty=lerp(ty,ay/kk+avy/kk*1.2,.65);}
+      if(lure&&!flee){tx=lure.x+lure.dir*lure.g.size*.9;ty=lure.y-lure.g.size*.6;spd=g.speed*.4;}
+    }
+    if(c.sleep&&!flee&&!tp){tx=c.slx;ty=floorAt(c.slx)-3;spd=g.speed*.15;}
+    if(c.plan==='moray'&&c.hunting&&!tp&&DENS[c.den]){const d=DENS[c.den];if(Math.hypot(c.wx-d.x,c.wy-d.y)>70){c.wx=d.x+R(-40,40);c.wy=d.y-R(0,20);}}
+    if(flee){tx=c.x+fx_*3;ty=c.y+fy_*3;spd=g.speed*1.25;
+      if(c.plan==='octopus'&&!(c.jet>0)&&!(c.ink>0)){c.jet=2.5;c.ink=20;puff(c.x,c.y,'#140c16',26,R(1.5,2.5));ty=c.y-30;[lo,hi]=boundsAt(c.plan,c.x,g,c);}}
+    if(c.ink>0)c.ink-=dt;
+    if(cold)spd*=.88;if(c.plan==='crab'&&rainy&&!storm&&c.y<200)spd*=1.3;
+    // moverse
+    if(FLOOR_PLANS.has(c.plan)&&!(c.jet>0)){
+      if(c.idle>0&&!flee&&!tf&&!tp){c.idle-=dt;c.vx*=.8;}
+      else{const dx=tx-c.x,want=clamp(dx*2,-spd,spd);c.vx+=(want-c.vx)*Math.min(1,dt*5);
+        const mv=c.vx*dt;if(Math.abs(mv)>=Math.abs(dx))c.x=tx;else c.x+=mv;if(Math.abs(c.vx)>.3)c.dir=c.vx>0?1:-1;}
+      c.x=clamp(c.x,MINX,MAXX);c.y=floorAt(c.x)-1;
+      c.ph+=dt*(Math.abs(c.vx)>.5?6:1.2);
+      if(c.plan==='octopus')c.cam=lerp(c.cam==null?0:c.cam,Math.abs(c.vx)>1?0:1,Math.min(1,dt*.8));
+      if(c.plan==='urchin'){for(const p of kelpNear(c.x)){if(Math.abs(p.x-c.x)<5){p.hp=Math.max(.15,p.hp-dt*.0035);c.e+=dt*.07;}}}
+    }else if(c.plan==='jelly'){
+      c.pt-=dt;
+      if(c.pt<=0){c.pt=R(1.8,3.2);c.vy=-g.speed*1.5;c.vx+=clamp(tx-c.x,-1,1)*g.speed*.5;c.pulse=0;}
+      c.pulse=(c.pulse||0)+dt;
+      c.vy+=3.5*dt;c.vx*=Math.max(0,1-dt*.7);c.vy*=Math.max(0,1-dt*.9);
+      if(ty>c.y+10&&c.vy<1.5)c.vy+=2*dt;
+      c.x+=c.vx*dt;c.y+=c.vy*dt;c.x=clamp(c.x,MINX,MAXX);[lo,hi]=boundsAt(c.plan,c.x,g,c);c.y=clamp(c.y,lo+2,hi-6);
+      c.ph=clamp(c.pulse/0.35,0,3.99);
+    }else{
+      swim(c,tx,ty,spd,dt,c.br?seaAt(c.x)-4:lo,hi);
+      c.ph+=dt*(1.6+Math.hypot(c.vx,c.vy)/(g.size*.9+1));
+      if(c.plan==='seahorse'&&Math.hypot(c.vx,c.vy)<1)c.ph+=dt*2;
+    }
+    if(curr&&c.y<150&&!FLOOR_PLANS.has(c.plan)&&c.plan!=='moray'){c.x=clamp(c.x+curr*dt*(c.plan==='jelly'?2.5:3/Math.max(2,g.size)),MINX,MAXX);}
+    // comer
+    const reach=c.plan==='whale'?g.size*1.6:FLOOR_PLANS.has(c.plan)?3:c.plan==='seahorse'?10:g.size*.7+1.5;
+    if(c.plan==='whale'||c.plan==='jelly'||c.plan==='seahorse'){
+      const mx=c.plan==='whale'?c.x+c.dir*g.size*g.len*.4:c.x,my=c.plan==='jelly'?c.y+g.size:c.y;
+      near(headF,nextF,mx,my,reach+g.size,j=>{const f=food[j];if(f.gone||f.k!=='p')return;if(Math.abs(f.x-mx)<reach*(c.plan==='jelly'?1.6:1)&&Math.abs(f.y-my)<reach*(c.plan==='jelly'?2.5:1)){c.e+=f.e*foodEff(c,f);f.gone=true;}});
+    }else if(tf&&!tf.gone&&Math.hypot(tf.x-c.x,tf.y-c.y)<reach){tf.gone=true;c.e+=tf.e*foodEff(c,tf);if(tf.k==='c')puff(tf.x,tf.y,'#e8dcc0',3);}
+    if(c.plan==='jelly'&&!(c.cd>0)){near(headC,nextC,c.x,c.y+g.size,g.size*3,j=>{const p=cr[j];if(c.cd>0||!canPrey(c,p))return;
+      if(Math.abs(p.x-c.x)<g.size*.7&&p.y>c.y&&p.y<c.y+g.size*2.6&&rnd()<dt*.8){p.dead='picado';p.eatenBy='jelly';c.e+=emax(p)*.6;c.cd=P.cd;puff(p.x,p.y,'#d6f6ff',4);}});}
+    // atacar
+    if(tp&&!tp.dead&&!(c.lunge>0)&&Math.hypot(tp.x-c.x,tp.y-c.y)<reach+tp.g.size*.5){
+      let school=0;if(tp.plan==='fish')near(headC,nextC,tp.x,tp.y,10,j=>{const q=cr[j];if(q!==tp&&q.sp===tp.sp&&Math.abs(q.x-tp.x)+Math.abs(q.y-tp.y)<10)school++;});
+      let pch=clamp(.35+(g.speed-tp.g.speed)/40-school*.05,.08,.8);
+      if(c.plan==='angler')pch=.75;if(tp.plan==='octopus'&&tp.cam>.7)pch*=.3;
+      c.lunge=1.2;
+      if(rnd()<pch){tp.dead='devorado';tp.eatenBy=c.plan;c.e+=emax(tp)*.7+8;c.cd=P.cd||20;puff(tp.x,tp.y,'#ffffff',5);if(c.plan==='otter'){c.eating=15;}}
+    }
+    c.e=Math.min(c.e,em*1.1);
+    // gaviotas
+    if(dl>.3&&!rainy&&WX.cat!=='niebla'&&c.x<ICE0&&(c.plan==='fish'||c.plan==='squid')&&c.y<seaAt(c.x)+6&&rnd()<.006*dl*dt*(g.size/3)){c.dead='gaviota';c.eatenBy='gaviota';gullT=t;gullX=c.x;}
+    if(c.leaving&&(c.x<=MINX-75||c.x>=MAXX+75)){c.dead='se fue';continue;}
+    if(c.dead){}else if(c.age>g.life)c.dead='vejez';else if(c.e<=0)c.dead='hambre';
+    else if(c.e>em*g.fert&&c.age>g.life*.18&&!(c.rc>0)&&!c.leaving&&cnt[c.plan]+(bornCnt[c.plan]||0)<P.cap&&(!BCAP[c.plan]||(cntB[c.bi+c.plan]||0)+(bornCnt[c.bi+c.plan]||0)<BCAP[c.plan])&&n+born.length<POPCAP&&(!P.slow||rnd()<dt/240)){
+      let ok=true;
+      if(hunter(c)){let prey=0,preds=0;near(headC,nextC,c.x,c.y,260,j=>{const q=cr[j];if(q.dead)return;if(canPrey(c,q))prey++;if(q.plan===c.plan&&hunter(q))preds++;});
+        ok=c.e>em*.9&&prey>preds*(c.plan==='shark'||c.plan==='orca'?10:c.plan==='fish'?6:3);}
+      if(ok){c.e*=.5;c.rc=g.life*.22;born.push(c);bornCnt[c.plan]=(bornCnt[c.plan]||0)+1;bornCnt[c.bi+c.plan]=(bornCnt[c.bi+c.plan]||0)+1;}
+    }
+  }
+  // limpiar
+  const alive=[];
+  for(const c of cr){
+    if(c.dead){
+      const s=spById(c.sp);s.alive--;s.lastX=c.x;st.dbg=st.dbg||{};const dk=c.plan+':'+(c.eatenBy||c.dead);st.dbg[dk]=(st.dbg[dk]||0)+1;
+      if(c.plan==='moray'&&c.den!=null&&DENS[c.den])DENS[c.den].taken=null;
+      if(c.dead==='se fue')logE('llegada',`${cap(s.common)} se marcha a mar abierto.`);
+      else{st.stats.deaths++;if(c.eatenBy)st.stats.eaten++;
+        if(!c.eatenBy&&c.plan!=='jelly'&&!c.onIce&&st.corpses.length<40)st.corpses.push({plan:c.plan,g:c.g,x:c.x,y:c.y,dir:c.dir,e:emax(c)*.4+10});}
+      if(s.alive<=0)extinct(s,c.dead==='se fue');
+    }else alive.push(c);
+  }
+  st.cr=alive;
+  for(const p of born){
+    const cg=mutate(p.g,p.plan);
+    const c=spawn(p.plan,cg,p.sp,p.gen+1,p.x+R(-2,2),p.y+R(-1,1),p.e*.8);
+    c.dir=p.dir;st.stats.births++;
+    if(c.gen>st.stats.maxGen){st.stats.maxGen=c.gen;if(c.gen>=st.stats.genMark+50){st.stats.genMark=Math.floor(c.gen/50)*50;logE('hito',`Se alcanza la generación ${st.stats.genMark}.`);}}
+    if(!st.firsts['b'+p.plan]&&p.plan!=='fish'){st.firsts['b'+p.plan]=1;logE('hito',`¡Primera cría de ${PLANS[p.plan].noun} nacida en este mar!`);}
+  }
+  if(food.length>FOODCAP*.5||STEP_I%20===0)food=food.filter(f=>!f.gone);
+  // kelp: se recupera
+  {const gr=.0002+.0011*Math.max(0,Math.cos(2*Math.PI*(SS.doy-110)/365));for(const p of PLANTS)if(p.kind==='kelp'&&p.hp<1)p.hp=Math.min(1,p.hp+dt*gr);}
+  // blanqueamiento del coral: verano + calor de verdad fuera
+  if(SS.warm>.55&&WX.temp>30)st.bleach=Math.min(1,(st.bleach||0)+dt/(4*3600));else if(st.bleach>0)st.bleach=Math.max(0,st.bleach-dt/(60*3600));
+  if(st.bleach!=null){const lv=Math.round(st.bleach*5);if(lv!==st.bleachLv){if(lv>(st.bleachLv||0)&&lv>=1)logE('hito',`Ola de calor: el coral del arrecife se está blanqueando (${lv*20} %). Si refresca, se recuperará poco a poco.`);if(lv===0&&st.bleachLv>0)logE('hito','El coral del arrecife ha recuperado su color.');st.bleachLv=lv;if(LIVE)rebuildCorals=true;}}
+  // cambio de estación
+  if(st.seasonName!==SS.name){if(st.seasonName)logE('cielo',{invierno:'Empieza el invierno: el agua se enfría, el hielo polar avanza sobre el mar abierto y las ballenas bajan a aguas cálidas a criar.',primavera:'Empieza la primavera: llega la floración del plancton y el kelp crece a toda velocidad.',verano:'Empieza el verano: el hielo se retira, el polo se llena de plancton y las ballenas suben a comer.',otoño:'Empieza el otoño: una segunda floración más pequeña y las ballenas inician el viaje de vuelta.'}[SS.name]);st.seasonName=SS.name;}
+  {const nt=NIGHT>.5;if(st.wasNight!=null&&nt!==st.wasNight&&LIVE){const A=astro(t);logE('cielo',nt?`Anochece (${moonPhaseName(A.age)}, ${Math.round(A.illum*100)} % iluminada). Los peces linterna y el plancton empiezan a subir desde el fondo y los del arrecife se esconden a dormir.`:'Amanece: la migración vertical vuelve a las profundidades.');}st.wasNight=nt;}
+  st.chk+=dt;if(st.chk>15*60){st.chk=0;checkSpecies();checkKelp();pruneSpecies();}
+  st.arr+=dt;if(st.arr>5*60){st.arr=0;tryArrival();}
+}
+function pruneSpecies(){
+  // el árbol guarda las especies vivas, sus antepasados, las que tienen fósil y las 120 extinciones más recientes
+  if(st.sp.length<500)return;
+  const keep=new Set(),byId=new Map(st.sp.map(s=>[s.id,s]));
+  for(const s of st.sp)if(!s.extinct){let q=s;while(q&&!keep.has(q.id)){keep.add(q.id);q=byId.get(q.parent);}}
+  for(const f of st.fossils)keep.add(f.sp);
+  st.sp.filter(s=>s.extinct).sort((a,b)=>b.extinct-a.extinct).slice(0,120).forEach(s=>keep.add(s.id));
+  st.sp=st.sp.filter(s=>keep.has(s.id));spCache.clear();iconCache.clear();
+}
+function checkKelp(){
+  const ks=PLANTS.filter(p=>p.kind==='kelp');if(!ks.length)return;
+  const avg=ks.reduce((a,p)=>a+p.hp,0)/ks.length;
+  st.kelpHp=ks.map(p=>+p.hp.toFixed(2));
+  if(avg<.55&&!st.barren){st.barren=1;logE('hito','Los erizos se están comiendo el bosque de kelp. Sin nutrias que los controlen, el bosque se queda calvo.');}
+  if(avg>.8&&st.barren){st.barren=0;logE('hito','El bosque de kelp se ha recuperado.');}
+}
+function countIn(plan,b){let n=0;for(const c of st.cr)if(c.plan===plan&&c.x>=b.x0&&c.x<b.x1)n++;return n;}
+function tryArrival(){
+  st.gone=st.gone||{};const age=(st.t-st.created)/1000;
+  const b=pick(BIOMES),c=[];
+  for(const [plan,n,ov] of NATIVES[b.id]){
+    const key=b.id+plan;if(countIn(plan,b)){st.gone[key]=0;continue;}
+    if(!st.gone[key]){st.gone[key]=st.t;continue;}
+    if(st.t-st.gone[key]>30*60e3)c.push([plan,n,ov]);
+  }
+  {const SS=season(st.t),m=SS.month,wh=st.cr.filter(x=>x.plan==='whale').length;
+    if(wh<3){
+      if((m===2||m===3||m===4)&&b.id==='abierto'&&rnd()<.6)c.push(['whale',2,()=>({depth:.12}),'mig_n']);
+      if((m===9||m===10)&&b.id==='kelp'&&rnd()<.6)c.push(['whale',2,()=>({depth:.12}),'mig_s']);
+      if((m===11||m===0||m===1)&&b.id==='arrecife'&&rnd()<.5)c.push(['whale',2,()=>({depth:.1}),'cria']);
+      if((m>=5&&m<=7)&&b.id==='polar'&&rnd()<.6)c.push(['whale',2,()=>({depth:.12}),'come']);
+      if(b.id==='abierto'&&!countIn('whale',b)&&rnd()<.2)c.push(['whale',1,()=>({depth:.12})]);
+    }
+    if(SS.warm>.3&&!countIn('jelly',b)&&rnd()<.3)c.push(['jelly',5,()=>({depth:.12})]);}
+  if((WX.cat==='lluvia'||WX.cat==='tormenta')&&rnd()<.5)c.push(['jelly',4,()=>({depth:.12})]);
+  if(!c.length)return;
+  const [plan,n,ov,tag]=pick(c);st.gone[b.id+plan]=0;
+  if(tag){const s=arrive(plan,b,n,ov?ov():null,true),ms=st.cr.filter(x=>x.sp===s.id);
+    const dest={mig_n:POL.cx-120,mig_s:BI.arrecife.cx+120,cria:BI.arrecife.cx,come:POL.cx}[tag];
+    ms.forEach((x,i)=>{x.mig=dest;x.leave=R(3600,7200);if(tag==='cria'&&i===1){x.age=x.g.life*.02;x.e=emax(x)*.5;}});
+    logE('llegada',{mig_n:`Migración: ballenas (<b>${s.name}</b>) cruzan el mar abierto rumbo al polo a alimentarse.`,mig_s:`Migración: ballenas (<b>${s.name}</b>) bajan desde el norte hacia aguas cálidas.`,
+      cria:`Una ballena llega al arrecife con su cría para pasar el invierno en aguas cálidas (<b>${s.name}</b>).`,come:`Ballenas (<b>${s.name}</b>) llegan al mar polar a comer el plancton del verano.`}[tag]);return;}
+  arrive(plan,b,Math.max(2,Math.round(n*.6)),ov?ov():null);
+}
+function meanG(list){const g={};for(const k in BASE){if(BASE[k][3]){let sx=0,sy=0;for(const c of list){sx+=Math.cos(c.g[k]*Math.PI/180);sy+=Math.sin(c.g[k]*Math.PI/180);}g[k]=((Math.atan2(sy,sx)*180/Math.PI)+360)%360;}else g[k]=list.reduce((a,c)=>a+c.g[k],0)/list.length;}
+  for(const k in DISC){const cnt={};list.forEach(c=>cnt[c.g[k]]=(cnt[c.g[k]]||0)+1);g[k]=+Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0][0];}return g;}
+function addFossil(s){
+  if(s.plan==='jelly'||s.plan==='squid'||s.plan==='octopus')return;
+  const x=clamp((s.lastX||BI[s.home||'abierto'].cx)+R(-20,20),MINX,MAXX),f={sp:s.id,x,y:floorAt(x)+R(3,10),f:rnd()<.5?-1:1,r:RI(3)-1};
+  st.fossils.push(f);if(st.fossils.length>60)st.fossils.shift();
+  drawFossil(f);
+}
+function checkSpecies(){
+  for(const s of st.sp.filter(q=>!q.extinct)){
+    const m=st.cr.filter(c=>c.sp===s.id);if(m.length<6)continue;
+    const far=m.filter(c=>dist(c.g,s.g,s.plan)>SPECIATE);if(far.length<5)continue;
+    const g=meanG(far),avgX=far.reduce((a,c)=>a+c.x,0)/far.length,hb=BIOMES[biomeIdx(avgX)];
+    const n=newSpecies(s.plan,g,s.id,rnd()<.65?s.name.split(' ')[0]:genusName(s.plan),hb.id);
+    far.forEach(c=>{c.sp=n.id;});n.alive=far.length;n.peak=far.length;s.alive-=far.length;
+    if(s.alive<=0){s.alive=0;s.extinct=st.t;s.evolved=n.id;
+      logE('nueva',`<b>${s.name}</b> ha evolucionado hasta convertirse en <b>${n.name}</b> (${n.common}).`);s.lastX=avgX;addFossil(s);}
+    else logE('nueva',`Nueva especie en ${hb.nm}: <b>${n.name}</b> (${n.common}), se separa de ${s.name}.`);
+    spCache.clear();
+  }
+}
+function extinct(s,left){
+  if(s.extinct)return;s.extinct=st.t;s.alive=0;
+  if(left){s.left=true;return;}
+  if(s.peak<4&&s.parent){s.minor=true;return;}
+  logE('extinta',`Se extinguió <b>${s.name}</b> (${s.common}). Pico: ${s.peak} ejemplares.`);
+  addFossil(s);
+}
+
+/* ================= ponerse al día ================= */
+let catchQ=null;const CATCHUP=false;
+function queueCatchUp(from,to){
+  // sin puesta al día: el mar sigue justo donde lo dejaste
+  if(!CATCHUP){if(st)st.t=to;return;}
+  let total=(to-from)/1000;if(total<=0)return;
+  const MAXSIM=6*3600;if(total>MAXSIM){from=to-MAXSIM*1000;total=MAXSIM;}
+  const steps=Math.min(3000,Math.ceil(total/.5));
+  catchQ={t:from,h:total/steps*1000,left:steps};
+  $('#ff').style.opacity=1;
+}
+function runCatchUp(){
+  const t0=performance.now();LIVE=false;
+  while(catchQ&&performance.now()-t0<14){
+    catchQ.t+=catchQ.h;step(catchQ.h/1000,catchQ.t);
+    if(--catchQ.left<=0){catchQ=null;$('#ff').style.opacity=0;showSummary();save();}
+  }
+  LIVE=true;
+}
+
+/* ================= dibujo ================= */
+function mix(a,b,t){return [lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)];}
+const rgb=c=>`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;
+let bubbles=[],snowP=[],clouds=[],rain=[],flakes=[],ripples=[],spray=[],flashT=0,bolt=null,silt=[];
+let rebuildCorals=false;let mask,mctx,RX=0,RY=0,skyT_=null,skyX_=null;const MRG=4;
+function drawPlant(p,T,ox,oy){
+  const gy=floorAt(p.x),sx=p.x-ox,sy=gy-oy;
+  if(p.kind==='kelp'){
+    const ph=Math.round(p.h*(.3+.7*p.hp)*season(Date.now()).kelp);if(sy-ph>H+2||sy<-2&&sy-ph<-2&&sy<0)return;
+    if(!p.cols)p.cols=[hsl(p.hue,.5,.2),hsl(p.hue,.55,.3),hsl(p.hue-8,.6,.4),hsl(p.hue-20,.6,.45)];const [stem,leaf,lt,tip]=p.cols;
+    for(let i=0;i<ph;i++){const y=sy-i;if(y<-1||y>H)continue;const u=i/ph,sw=Math.round(Math.sin(T*.6+p.s+i*.06)*u*u*7+Math.sin(T*1.3+i*.3)*u*.6),x=sx+sw;
+      ctx.fillStyle=stem;ctx.fillRect(x,y,1,1);
+      if(i>2&&i%4===0){const side=(i/4)%2?1:-1,ll=2+Math.round((1-u)*2+Math.sin(p.s+i)*.8);for(let k=1;k<=ll;k++){ctx.fillStyle=k===ll?lt:leaf;ctx.fillRect(x+side*k,y-Math.round(k*.6)+Math.round(Math.sin(T*1.6+i+k)*.4),1,1);}}}
+    ctx.fillStyle=tip;ctx.fillRect(sx+Math.round(Math.sin(T*.6+p.s+ph*.06)*7),sy-ph,1,1);
+  }else if(p.kind==='pos'){
+    if(!p.cols){p.cols=[];for(let i=0;i<p.h;i++)p.cols.push(hsl(p.hue,.5,.22+i/p.h*.14));}
+    for(let i=0;i<p.h;i++){const u=i/p.h,sw=Math.round(Math.sin(T*1.1+p.s+i*.15)*u*u*2.5);ctx.fillStyle=p.cols[i|0];ctx.fillRect(sx+sw,sy-i,1,1);}
+  }else if(p.kind==='grass'){
+    if(!p.cols){p.cols={};for(let k=-1;k<=1;k++){const hh=Math.round(p.h*(k?0.75:1));p.cols[k]=[];for(let i=0;i<hh;i++)p.cols[k].push(hsl(p.hue+k*8,.5,.24+i/hh*.12));}}
+    for(let k=-1;k<=1;k++){const hh=Math.round(p.h*(k?0.75:1));for(let i=0;i<hh;i++){const u=i/hh;ctx.fillStyle=p.cols[k][i];ctx.fillRect(sx+k*2+Math.round(Math.sin(T*.9+p.s+k)*u*u*2)+(k*Math.round(u*1.5)),sy-i,1,1);}}
+  }else if(p.kind==='anem'){
+    if(!p.cols)p.cols=[hsl(p.hue,.6,.35),hsl(p.hue,.75,.55),hsl(p.hue,.75,.75)];
+    ctx.fillStyle=p.cols[0];ctx.fillRect(sx-2,sy-1,5,2);
+    for(let k=0;k<p.n;k++){const a=(k/(p.n-1)-.5)*2.2;for(let i=1;i<=p.h;i++){const x=sx+Math.round(Math.sin(a+Math.sin(T*1.8+k+p.s)*.25)*i*.8),y=sy-1-Math.round(Math.cos(a)*i);ctx.fillStyle=p.cols[i===p.h?2:1];ctx.fillRect(x,y,1,1);}}
+  }
+}
+function drawCr(c,alpha,ox,oy){
+  const s=getSpr(c)[Math.floor(c.ph)%4];let x=Math.round(c.x-ox),y=Math.round(c.y-oy);
+  if(FLOOR_PLANS.has(c.plan)&&!(c.jet>0))y=Math.round(c.y-oy-s.height/2+2);
+  if(c.plan==='jelly')y=Math.round(c.y-oy+s.height*.3);
+  if(c.plan==='penguin'&&c.onIce)y=Math.round(c.y-oy-s.height/2+1);
+  if(c.plan==='octopus'&&c.cam>0)alpha*=1-c.cam*.75;
+  ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);
+  if(c.dir<0&&c.plan!=='crab'&&c.plan!=='jelly'&&c.plan!=='urchin')ctx.scale(-1,1);
+  ctx.drawImage(s,-(s.width>>1),-(s.height>>1));ctx.restore();
+}
+function render(now,fdt){
+  const T=now/1000,dl=daylight(now),night=1-dl,h=hourOf(now),F=fdt*60;
+  const ox=Math.floor(cam.x-W/2),oy=Math.floor(cam.y-H/2);RX=ox;RY=oy;
+  const cat=WX.cat,storm=cat==='tormenta',rainy=cat==='lluvia'||storm;
+  const grey=clamp(WX.cloud*.85+(rainy?.25:0)+(cat==='niebla'?.5:0),0,1),wave=1+WX.wind/18;
+  updateTide(now);const A=astro(now),moonL=A.moonLight;
+  let seaMax=-1e9,seaMin=1e9;for(let sx=0;sx<=W;sx+=16){const v=seaAt(ox+sx);if(v>seaMax)seaMax=v;if(v<seaMin)seaMin=v;}
+  const surfY=Math.round(seaMax-oy),surfTop=Math.round(seaMin-oy);
+  // ---- cielo ----
+  if(surfY>0){
+    const dusk=duskOf(now)*(1-grey*.7);
+    let skyT=mix([6,10,28],[110,175,230],dl),skyB=mix([14,20,44],[190,220,240],dl);
+    skyB=mix(skyB,[250,150,100],clamp(dusk*.7,0,.8));skyT=mix(skyT,[120,80,140],clamp(dusk*.4,0,.5));
+    const gy_=storm?[50,54,64]:[130,138,148];skyT=mix(skyT,mix([20,22,30],gy_,dl),grey*.85);skyB=mix(skyB,mix([28,30,38],gy_.map(v=>v+25),dl),grey*.85);
+    const g0=ctx.createLinearGradient(0,0,0,surfY);g0.addColorStop(0,rgb(skyT));g0.addColorStop(1,rgb(skyB));ctx.fillStyle=g0;ctx.fillRect(0,0,W,surfY+1);
+    if(night>.4&&grey<.6){ctx.fillStyle=`rgba(255,255,240,${(night-.4)*1.2*(1-grey)*(1-moonL*.6)})`;for(let i=0;i<50;i++){const sx=((hash(i,7)*W*1.7-ox*.1)%W+W)%W,syy=hash(i,13)*Math.max(4,surfY-3);if((i+Math.floor(T*.7))%9)ctx.fillRect(sx|0,syy|0,1,1);}}
+    const bodyA=1-grey*.85,arc=Math.min(surfY*.8,70),skyX=H_=>Math.round(W*(.5+clamp(H_/200,-.47,.47))),skyY=alt=>Math.round(surfY-3-clamp(alt/60,0,1)*arc);
+    if(A.alt>-3){ctx.globalAlpha=bodyA;const sx=skyX(A.H),syy=skyY(A.alt);ctx.fillStyle=dusk>.3?'#ffb86b':'#fff4c2';for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++)if(a*a+b*b<=9)ctx.fillRect(sx+a,syy+b,1,1);ctx.globalAlpha=1;}
+    if(A.altM>-2){const mx=skyX(A.HM),my=skyY(A.altM),r=3,th=Math.cos(2*Math.PI*A.age/SYN),wax=A.age<SYN/2;ctx.globalAlpha=bodyA*(.55+.45*night);
+      for(let b=-r;b<=r;b++){const w=Math.sqrt(Math.max(0,r*r-b*b+.6));for(let a=-r;a<=r;a++){if(Math.abs(a)>w)continue;const lit=wax?a>th*w:a<-th*w;ctx.fillStyle=lit?'#eef2ff':'rgba(120,130,160,.35)';ctx.fillRect(mx+a,my+b,1,1);}}ctx.globalAlpha=1;}
+    const nC=Math.round(grey*W/24)+(cat==='despejado'&&WX.cloud>.15?2:0)+1;
+    while(clouds.length<nC)clouds.push({x:R(-30,W),y:R(0,1),w:R(12,34),s:R(0,99)});if(clouds.length>nC)clouds.length=nC;
+    const cc=mix(mix([40,44,60],[235,240,245],dl),storm?[70,72,82]:[150,155,165],grey*.6);
+    for(const c of clouds){c.x+=(2+WX.wind*.12)*fdt;if(c.x>W+40){c.x=-c.w-5;}const cy=c.y*Math.max(2,surfY*.5);
+      const hh=Math.max(2,Math.round(c.w*.28));for(let i=0;i<c.w;i++){const u=i/c.w,top=Math.round(hh*(.5+.5*Math.sin(u*Math.PI))*(.8+.2*Math.sin(i*.9+c.s)));
+        ctx.fillStyle=rgb(cc);ctx.fillRect((c.x+i)|0,(cy+hh-top)|0,1,top);}}
+    if(storm&&rnd()<.07*fdt){flashT=now;bolt=[];let x=R(10,W-10),y=0;while(y<surfY){bolt.push([x|0,y|0]);y+=R(1,3);x+=R(-2,2);}}
+  }
+  // ---- agua ----
+  const top=Math.max(0,surfTop);
+  for(let sx=0;sx<W;sx+=8){
+    const wx=ox+sx+4,{i,j,t}=biomeBlend(wx),tint=mix(BIOMES[i].tint,BIOMES[j].tint,t),deep=mix(BIOMES[i].deep,BIOMES[j].deep,t);
+    let tt=tint;if(rainy)tt=mix(tt,[70,95,100],.25);
+    const st0=Math.max(0,Math.round(seaAt(wx)-oy)),g=ctx.createLinearGradient(0,st0,0,H),amb=Math.max(dl,.12+.2*moonL);
+    for(let k=0;k<=4;k++){const y=lerp(st0,H,k/4),wy=y+oy,l=lightAt(wy);g.addColorStop(k/4,rgb(mix(deep,tt.map(v=>v*(.45+.55*amb)),Math.min(1,l*1.1))));}
+    ctx.fillStyle=g;ctx.fillRect(sx,st0,8,H-st0);
+  }
+  // cordillera lejana
+  ctx.fillStyle='rgba(0,8,20,.22)';
+  for(let sx=0;sx<W;sx+=2){const wx=cam.x*.6+(sx-W/2)*.6+WORLD_W*.2,ry=Math.max(70,floorAt(((wx%WORLD_W)+WORLD_W)%WORLD_W)*.85+10),r=ry-oy;if(r<H)ctx.fillRect(sx,Math.max(top,r|0),2,H);}
+  // rayos de luz
+  if(dl>.05&&oy<180&&grey<.9){ctx.save();ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<8;i++){const x0=(((i*W/6-ox*.3+Math.sin(T*.15+i)*14)%(W*1.4))+W*1.4)%(W*1.4)-W*.2,w=4+(i%3)*4,a=.04*dl*(1-grey)*(.6+.4*Math.sin(T*.5+i*1.7));
+      const lg=ctx.createLinearGradient(0,top,0,top+180);lg.addColorStop(0,`rgba(255,250,215,${a})`);lg.addColorStop(1,'rgba(255,250,215,0)');ctx.fillStyle=lg;
+      ctx.beginPath();ctx.moveTo(x0,top);ctx.lineTo(x0+w,top);ctx.lineTo(x0+w+40,top+180);ctx.lineTo(x0+30,top+180);ctx.fill();}
+    ctx.restore();}
+  // nieve marina
+  const nS=Math.round(W*H/1800);while(snowP.length<nS)snowP.push({x:R(0,W),y:R(0,H),v:R(.6,2),s:R(0,6)});
+  ctx.fillStyle='rgba(220,235,240,.28)';
+  for(const s of snowP){s.y+=s.v*fdt;if(s.y>H)s.y=top;if(s.y<top)s.y=top+R(0,H-top);ctx.fillRect(((s.x+Math.sin(T*.4+s.s)*1.5-ox*.15)%W+W)%W|0,s.y|0,1,1);}
+  // plantas de fondo
+  const vis=(x,m)=>x>ox-m&&x<ox+W+m;
+  for(const p of PLANTS)if(!p.front&&vis(p.x,12))drawPlant(p,T,ox,oy);
+  // morenas en su cueva (detrás de la roca)
+  for(const c of st.cr)if(c.plan==='moray'&&c.atDen&&vis(c.x,30))drawCr(c,1,ox,oy);
+  ctx.drawImage(terr,ox,oy-TY0,W,H,0,0,W,H);
+  // de noche, lo que asoma fuera del agua (árboles, playa, hielo) también se oscurece
+  if(surfY>0&&night>.05){if(!skyT_||skyT_.width!==W||skyT_.height<surfY){skyT_=document.createElement('canvas');skyT_.width=W;skyT_.height=Math.max(surfY,1);skyX_=skyT_.getContext('2d');}
+    skyX_.globalCompositeOperation='source-over';skyX_.clearRect(0,0,W,skyT_.height);skyX_.drawImage(terr,ox,oy-TY0,W,surfY,0,0,W,surfY);
+    skyX_.globalCompositeOperation='source-atop';skyX_.fillStyle=`rgba(4,8,22,${(night*.7*(1-moonL*.35)).toFixed(2)})`;skyX_.fillRect(0,0,W,surfY);ctx.drawImage(skyT_,0,0,W,surfY,0,0,W,surfY);}
+  // hielo polar (avanza en invierno, se retira en verano)
+  if(ox+W>ICE0){const nd=night*.7*(1-moonL*.35),ic=c=>rgb(mix(c,[4,8,22],nd));const cT=ic([255,255,255]),cA=ic([230,244,251]),cB=ic([191,226,242]),cC=ic([143,196,220]);
+    for(let sx=0;sx<W;sx++){const wx=ox+sx;if(!iceAt(wx))continue;const th=4+Math.round(Math.sin(wx*.07)*1.5),up=3+Math.round(Math.sin(wx*.05)*1.2),y0=-oy;
+      const edge=Math.min(1,(wx-ICE0)/6);const u2=Math.round(up*edge),t2=Math.max(2,Math.round(th*edge));
+      ctx.fillStyle=cT;ctx.fillRect(sx,y0-u2,1,1);ctx.fillStyle=cA;ctx.fillRect(sx,y0-u2+1,1,u2);ctx.fillStyle=cB;ctx.fillRect(sx,y0+1,1,t2-2);ctx.fillStyle=cC;ctx.fillRect(sx,y0+t2-1,1,1);}}
+  // fumarolas
+  for(const v of VENTS)if(vis(v.x,20)){for(let k=0;k<6;k++){const a=((T*.8+k/6)%1),x=v.x-ox+Math.sin(T*2+k)*a*3,y=v.y-oy-a*24;ctx.fillStyle=`rgba(90,80,90,${.5*(1-a)})`;ctx.fillRect(x|0,y|0,1+(a>.5?1:0),1);}}
+  // comida
+  for(const f of food){if(f.gone||!vis(f.x,2))continue;const y=f.y-oy;if(y<0||y>H)continue;ctx.fillStyle=f.k==='c'?'#d9ccb0':f.k==='d'?'#9c8a62':'#d9e7b0';ctx.fillRect((f.x-ox)|0,y|0,1,1);if(f.k==='c'){ctx.fillRect((f.x-ox+1)|0,y|0,1,1);}}
+  for(const k of st.corpses){if(!vis(k.x,20))continue;if(!k.spr)k.spr=makeSprite(k.plan,k.g,0);ctx.save();ctx.globalAlpha=.55;ctx.filter='grayscale(.8) brightness(.8)';ctx.translate(Math.round(k.x-ox),Math.round(k.y-oy));ctx.scale(k.dir,-1);ctx.drawImage(k.spr,-(k.spr.width>>1),-(k.spr.height>>1));ctx.restore();}
+  // criaturas visibles
+  const visC=st.cr.filter(c=>vis(c.x,60)&&c.y>oy-40&&c.y<oy+H+40&&!(c.plan==='moray'&&c.atDen)).sort((a,b)=>area(b)-area(a));
+  for(const c of visC)drawCr(c,c.plan==='jelly'?.9:1,ox,oy);
+  for(const p of PLANTS)if(p.front&&vis(p.x,12))drawPlant(p,T,ox,oy);
+  // submarino
+  const b=subBat(),ch=charging(),low=b<.15&&!ch;
+  let lights=(.45+.55*Math.min(1,b/.3))*(ch?1.15:1);if(low&&rnd()<.1)lights*=.2;
+  const sspr=sSubCache[Math.floor(sub.fr)%4]||(sSubCache[Math.floor(sub.fr)%4]=sSub(Math.floor(sub.fr)%4,1));
+  const ssx=Math.round(sub.x-ox),ssy=Math.round(sub.y-oy);
+  ctx.save();ctx.translate(ssx,ssy);if(sub.dir<0)ctx.scale(-1,1);ctx.drawImage(sspr,-(sspr.width>>1),-(sspr.height>>1));ctx.restore();
+  if(ch&&rnd()<.4*F){fx.push({x:sub.x+R(-14,14),y:sub.y+R(-6,6),vx:R(-6,6),vy:R(-6,6),t:.3,col:rnd()<.5?'#ffe46a':'#8ff7ff',g:0});}
+  // efectos
+  for(let i=fx.length-1;i>=0;i--){const f=fx[i];f.t-=fdt;f.x+=f.vx*fdt;f.y+=f.vy*fdt;f.vy+=(f.g==null?6:f.g)*fdt;if(f.col==='#140c16'){f.vx*=.97;f.vy*=.97;}if(f.t<=0){fx.splice(i,1);continue;}ctx.globalAlpha=clamp(f.t*1.5,0,1);ctx.fillStyle=f.col;ctx.fillRect((f.x-ox)|0,(f.y-oy)|0,f.col==='#140c16'?2:1,f.col==='#140c16'?2:1);}ctx.globalAlpha=1;
+  // ---- oscuridad con huecos de luz ----
+  if(!mask||mask.width!==W||mask.height!==H){mask=document.createElement('canvas');mask.width=W;mask.height=H;mctx=mask.getContext('2d');}
+  mctx.globalCompositeOperation='source-over';mctx.clearRect(0,0,W,H);
+  const mg=mctx.createLinearGradient(0,top,0,H);
+  for(let k=0;k<=6;k++){const y=lerp(top,H,k/6)+oy,l=lightAt(y)*(.16+.22*moonL+.62*dl);mg.addColorStop(k/6,`rgba(0,3,12,${clamp(1-l*1.05,0,.97)})`);}
+  mctx.fillStyle=mg;mctx.fillRect(0,top,W,H-top);
+  mctx.globalCompositeOperation='destination-out';
+  const hole=(x,y,r,a)=>{const rg=mctx.createRadialGradient(x,y,0,x,y,r);rg.addColorStop(0,`rgba(0,0,0,${a})`);rg.addColorStop(1,'rgba(0,0,0,0)');mctx.fillStyle=rg;mctx.fillRect(x-r,y-r,r*2,r*2);};
+  const lx=ssx+sub.dir*17,ly=ssy+4,LEN=150*lights;
+  {mctx.save();mctx.beginPath();mctx.moveTo(lx,ly);mctx.lineTo(lx+sub.dir*LEN,ly+LEN*.12);mctx.lineTo(lx+sub.dir*LEN*.85,ly+LEN*.62);mctx.closePath();mctx.clip();
+    const rg=mctx.createRadialGradient(lx,ly,0,lx,ly,LEN);rg.addColorStop(0,`rgba(0,0,0,${.95*Math.min(1,lights)})`);rg.addColorStop(1,'rgba(0,0,0,0)');mctx.fillStyle=rg;mctx.fillRect(lx-LEN,ly-LEN,LEN*2,LEN*2);mctx.restore();}
+  hole(ssx,ssy,26*lights,.75);
+  for(const c of visC){if(c.g.glow>.3){hole(c.x-ox,c.y-oy,c.g.size*(2+c.g.glow*3),c.g.glow*.9);}}
+  for(const v of VENTS)if(vis(v.x,40))hole(v.x-ox,v.y-oy,28,.6);
+  for(const f of fx)if(f.col==='#ffe46a'||f.col==='#8ff7ff')hole(f.x-ox,f.y-oy,4,.8);
+  if(Date.now()-sparkT<4000)hole(ssx,ssy,90,.6*(1-(Date.now()-sparkT)/4000));
+  ctx.drawImage(mask,0,0);
+  // ---- brillos ----
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  {ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+sub.dir*LEN,ly+LEN*.12);ctx.lineTo(lx+sub.dir*LEN*.85,ly+LEN*.62);ctx.closePath();const rg=ctx.createRadialGradient(lx,ly,0,lx,ly,LEN);rg.addColorStop(0,`rgba(255,240,200,${.16*lights})`);rg.addColorStop(1,'rgba(255,240,200,0)');ctx.fillStyle=rg;ctx.fill();}
+  for(const c of visC){if(c.g.glow<.3)continue;const dk=1-lightAt(c.y)*(.3+.7*dl);if(dk<.2)continue;const r=c.g.size*(1.4+c.g.glow*1.8),a=dk*c.g.glow*.55*(.75+.25*Math.sin(T*2+c.id)),x=c.x-ox,y=c.y-oy;
+    const rg=ctx.createRadialGradient(x,y,0,x,y,r);rg.addColorStop(0,`hsla(${c.plan==='jelly'?c.g.hue:c.plan==='angler'?170:(c.g.hue+150)%360},100%,70%,${a})`);rg.addColorStop(1,'hsla(0,0%,0%,0)');ctx.fillStyle=rg;ctx.fillRect(x-r,y-r,r*2,r*2);
+    if(c.plan==='angler'){ctx.fillStyle=`rgba(210,255,240,${.6+.4*Math.sin(T*3+c.id)})`;ctx.fillRect(Math.round(x+c.dir*(c.g.size*.6)),Math.round(y-c.g.size*.75),1,1);}}
+  for(const v of VENTS)if(vis(v.x,40)){const x=v.x-ox,y=v.y-oy,rg=ctx.createRadialGradient(x,y,0,x,y,16);rg.addColorStop(0,`rgba(255,120,40,${.35+.1*Math.sin(T*3+v.x)})`);rg.addColorStop(1,'rgba(255,120,40,0)');ctx.fillStyle=rg;ctx.fillRect(x-16,y-16,32,32);}
+  for(const f of food){if(f.gone||f.k!=='p'||!vis(f.x,1))continue;const y=f.y-oy;if(y<top||y>H)continue;const dk=1-lightAt(f.y)*(.3+.7*dl);if(dk>.5&&((f.x*31+f.y)|0)%4===0){ctx.fillStyle=`rgba(90,255,200,${.5*dk})`;ctx.fillRect((f.x-ox)|0,y|0,1,1);}}
+  for(const c of visC)if(c.g.glow>.45){const dk=1-lightAt(c.y)*(.3+.7*dl);if(dk>.3){ctx.globalCompositeOperation='source-over';drawCr(c,dk*c.g.glow*.8,ox,oy);ctx.globalCompositeOperation='lighter';}}
+  ctx.restore();
+  // luces de navegación por encima de la oscuridad
+  ctx.fillStyle=Math.floor(T*2)%2?'#ff4a4a':'#5a1010';ctx.fillRect(ssx-sub.dir*5,ssy-9,1,1);
+  ctx.fillStyle=lights>.3?'#fffbe0':'#665';ctx.fillRect(lx,ly,1,1);
+  // burbujas
+  if(rnd()<.03*F){const c=pick(visC);if(c&&!FLOOR_PLANS.has(c.plan))bubbles.push({x:c.x+c.dir*c.g.size*.6,y:c.y,v:R(5,9),s:R(0,6)});}
+  ctx.fillStyle='rgba(220,250,255,.65)';
+  for(let i=bubbles.length-1;i>=0;i--){const bb=bubbles[i];bb.y-=bb.v*fdt;if(bb.y<=(iceAt(bb.x)?6:seaAt(bb.x)+1)||bb.life<0){bubbles.splice(i,1);if(bb.y<=seaAt(bb.x)+1&&rnd()<.3)ripples.push({x:bb.x,t:0});continue;}
+    if(bb.sub){bb.life=(bb.life==null?4:bb.life)-fdt;}const x=bb.x-ox+Math.sin(bb.y*.3+bb.s);if(x>-2&&x<W+2)ctx.fillRect(x|0,(bb.y-oy)|0,1,1);}
+  if(bubbles.length>500)bubbles.splice(0,bubbles.length-500);
+  // sonar
+  const pa=12-sub.ping;if(pa<2.2){const r=pa*70;ctx.strokeStyle=`rgba(127,224,200,${.35*(1-pa/2.2)})`;ctx.lineWidth=1;ctx.beginPath();ctx.arc(ssx,ssy,r,0,Math.PI*2);ctx.stroke();}
+  // ---- superficie y tiempo ----
+  if(surfY>-4&&surfY<H){
+    const sCol=`rgba(210,250,255,${(.25+.35*dl).toFixed(2)})`,foam=WX.wind>28;ctx.fillStyle=sCol;
+    for(let x=0;x<W;x++){const wx=x+ox;if(wx>=ICE0&&iceAt(wx))continue;const yy=Math.round(seaAt(wx)-oy)+Math.round((Math.sin(wx*.16+T*1.4*wave)*.7+Math.sin(wx*.05-T*.7)*.5)*wave);
+      ctx.fillRect(x,yy,1,1);
+      if(foam&&(wx*7+Math.floor(T*3))%23===0){ctx.fillStyle='rgba(255,255,255,.8)';ctx.fillRect(x,yy-1,2,1);ctx.fillStyle=sCol;}}
+    if(now-gullT<1800&&dl>.2){const k=(now-gullT)/1800,gx=Math.round(gullX-ox-20+k*40),gy=Math.round(seaAt(gullX)-oy)+3;ctx.fillStyle='rgba(0,10,20,.3)';for(let i=-5;i<=5;i++)ctx.fillRect(gx+i,gy+Math.round(Math.abs(i)*.4),1,1);}
+    for(const c of st.cr){if(c.spout>0&&vis(c.x,20)&&c.y<seaAt(c.x)+14){const bx=c.x+c.dir*c.g.size*c.g.len*.25;for(let k=0;k<2*F;k++)spray.push({x:bx+R(-1,1),y:seaAt(bx)-1,vx:R(-6,6),vy:R(-26,-14),t:1});}}
+  }
+  if(surfY>0){
+    if(rainy){const n=Math.round(WX.int*W*(storm?.9:.5));while(rain.length<n)rain.push({x:R(0,W),y:R(-surfY,surfY),v:R(90,140)});if(rain.length>n)rain.length=n;
+      const sl=storm?.35:.12;ctx.fillStyle=`rgba(200,215,230,${.35+.25*dl})`;
+      for(const d of rain){d.y+=d.v*fdt;d.x+=d.v*sl*fdt;if(d.x>W)d.x-=W;if(d.y>=seaAt(d.x+ox)-oy){if(rnd()<.35)ripples.push({x:d.x+ox,t:0});d.y=R(-10,0);d.x=R(-10,W);}ctx.fillRect(d.x|0,d.y|0,1,1);ctx.fillRect((d.x-sl)|0,(d.y-1)|0,1,1);}
+    }else rain.length=0;
+    const snowing=cat==='nieve'||(cam.x>ICE0-100&&season(now).ice>-.35);
+    if(snowing){const n=Math.round(W*(cat==='nieve'?.5:.2));while(flakes.length<n)flakes.push({x:R(0,W),y:R(0,surfY),v:R(6,12),s:R(0,9)});if(flakes.length>n)flakes.length=n;
+      ctx.fillStyle='rgba(250,252,255,.85)';for(const f of flakes){f.y+=f.v*fdt;if(f.y>surfY+4){f.y=R(-5,0);f.x=R(0,W);}ctx.fillRect((f.x+Math.sin(T+f.s)*2)|0,f.y|0,1,1);}}
+    if(cat==='niebla'){const fg=ctx.createLinearGradient(0,0,0,surfY+50);fg.addColorStop(0,`rgba(200,205,210,${.35*Math.max(.3,dl)})`);fg.addColorStop(1,'rgba(200,205,210,0)');ctx.fillStyle=fg;ctx.fillRect(0,0,W,surfY+50);}
+  }
+  ctx.fillStyle='rgba(230,245,255,.7)';
+  for(let i=ripples.length-1;i>=0;i--){const r=ripples[i];r.t+=fdt;if(r.t>.35){ripples.splice(i,1);continue;}const k=Math.round(r.t*8),x=r.x-ox,ry=Math.round(seaAt(r.x)-oy);ctx.fillRect((x-k)|0,ry-1,1,1);ctx.fillRect((x+k)|0,ry-1,1,1);}
+  ctx.fillStyle='rgba(235,250,255,.85)';
+  for(let i=spray.length-1;i>=0;i--){const s=spray[i];s.t-=fdt;s.x+=s.vx*fdt;s.y+=s.vy*fdt;s.vy+=30*fdt;if(s.t<=0||s.y>seaAt(s.x)){spray.splice(i,1);continue;}ctx.fillRect((s.x-ox)|0,(s.y-oy)|0,1,1);}
+  if(storm&&oy<300){const fl=(now-flashT)/1000;if(fl<.5){if(bolt&&fl<.18&&surfY>0){ctx.fillStyle='#fffbe0';for(const [x,y] of bolt)ctx.fillRect(x,y,1,1);}ctx.fillStyle=`rgba(230,235,255,${(.5-fl)*.7*clamp(1-oy/300,0,1)})`;ctx.fillRect(0,0,W,H);}}
+}
+const sSubCache=[];
+
+/* ================= HUD, minimapa y escáner ================= */
+const hud=$('#hud'),mapC=$('#map'),mapX=mapC.getContext('2d');
+const toC=v=>Math.round(30-v*32);
+function updHUD(){
+  if(true){hud.style.display='none';mapC.style.display='none';return;}
+  hud.style.display='';mapC.style.display='';
+  const b=BIOMES[biomeIdx(sub.x)],depth=Math.round(Math.max(0,sub.y)*2.2),tC=toC(tempAt(sub.x,Math.max(0,sub.y))),bt=subBat(),ch=charging();
+  let nearN=0;for(const c of st.cr)if(Math.abs(c.x-sub.x)<W*.6&&Math.abs(c.y-sub.y)<H*.6)nearN++;
+  const mode=ch?' · <span style="color:#ffe46a">⚡ turbo</span>':bt<.15?' · <span style="color:#ff8f8f">ahorro</span>':'';
+  const tgt=sub.state==='go'&&sub.poi?`rumbo a ${sub.poi.nm}`:sub.follow?'siguiendo a un bicho':'observando';
+  hud.innerHTML=`<b>${b.nm}</b><br>${depth} m · ${tC} °C · ${nearN} bichos cerca<br><span class="bat"><i style="width:${Math.round(bt*18)}px;${bt<.15?'background:#ff6b5b':''}"></i></span>${Math.round(bt*100)}%${mode}<br><span style="opacity:.7">${tgt}${depth<10?' · '+CATS[WX.cat].i+' '+Math.round(WX.temp)+' °C fuera':''}</span>`;
+}
+function drawMap(){
+  return;
+  const dpr=Math.min(2,devicePixelRatio||1),mw=Math.round(mapC.clientWidth*dpr),mh=Math.round(mapC.clientHeight*dpr);
+  if(mapC.width!==mw||mapC.height!==mh){mapC.width=mw;mapC.height=mh;}
+  const sx=mw/WORLD_W,sy=(mh-4)/(WORLD_H*.98),X=mapX;X.clearRect(0,0,mw,mh);
+  for(const b of BIOMES){X.fillStyle=b.col;X.globalAlpha=.8;X.fillRect(b.x0*sx,0,b.w*sx,2*dpr);X.globalAlpha=1;}
+  X.fillStyle='rgba(30,70,110,.5)';X.fillRect(0,2*dpr,mw,mh);
+  X.fillStyle='#8a7a5c';X.beginPath();X.moveTo(0,mh);for(let x=0;x<=WORLD_W;x+=8)X.lineTo(x*sx,2*dpr+Math.max(0,floorAt(x))*sy);X.lineTo(mw,mh);X.fill();
+  X.fillStyle='#e6f4fb';X.fillRect(ICE0*sx,2*dpr,(ICE1-ICE0)*sx,1.5*dpr);
+  X.fillStyle='rgba(200,255,240,.6)';for(const c of st.cr)X.fillRect(c.x*sx,2*dpr+Math.max(0,c.y)*sy,1,1);
+  X.strokeStyle='rgba(255,255,255,.6)';X.lineWidth=1;X.strokeRect((cam.x-W/2)*sx,2*dpr+Math.max(0,cam.y-H/2)*sy,W*sx,H*sy);
+  X.fillStyle=Math.floor(Date.now()/500)%2?'#ffd04a':'#ff8a3a';X.fillRect(sub.x*sx-2*dpr,2*dpr+Math.max(0,sub.y)*sy-1.5*dpr,4*dpr,3*dpr);
+}
+const scan=$('#scan');let scanT;
+function showScan(c){
+  const s=spById(c.sp),P=PLANS[c.plan];
+  const ageP=Math.round(c.age/c.g.life*100),hb=BIOMES[biomeIdx(c.x)];
+  scan.innerHTML=`<div class="hd"><img src="${makeSprite(c.plan,c.g,0).toDataURL()}" alt=""><div><b>${cap(s.common)}</b><i>${s.name}</i></div></div>
+    <div><span class="k">Grupo:</span> ${P.nm}</div><div><span class="k">Generación:</span> ${c.gen} · <span class="k">vida:</span> ${ageP}%</div>
+    <div><span class="k">Energía:</span> ${Math.round(c.e/emax(c)*100)}% · <span class="k">ideal:</span> ${toC(c.g.temp)} °C</div>
+    <div><span class="k">Ahora en:</span> ${hb.nm}, ${Math.round(Math.max(0,c.y)*2.2)} m</div>
+    <div><span class="k">Especie:</span> ${s.alive} vivos${s.parent&&spById(s.parent)?` · desciende de ${spById(s.parent).name}`:''}</div>
+    <button class="btn" id="follow">${sub.follow===c.id?'Dejar de seguir':'🔦 Seguir con el submarino'}</button>`;
+  scan.classList.add('on');clearTimeout(scanT);scanT=setTimeout(()=>scan.classList.remove('on'),12000);
+  $('#follow').onclick=e=>{e.stopPropagation();if(sub.follow===c.id){sub.follow=null;sub.userFollow=false;}else{sub.follow=c.id;sub.userFollow=true;sub.state='go';cam.manual=0;}scan.classList.remove('on');};
+}
+mapC.addEventListener('pointerup',e=>{e.stopPropagation();const r=mapC.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*WORLD_W,y=(e.clientY-r.top)/r.height*WORLD_H;
+  sub.tx=clamp(x,MINX+30,MAXX-30);sub.ty=clamp(y,10,floorAt(sub.tx)-20);sub.state='go';sub.follow=null;sub.userFollow=false;sub.poi={nm:BIOMES[biomeIdx(sub.tx)].nm};cam.manual=0;});
+
+/* ================= resumen ================= */
+const toast=$('#toast');let toastT;
+function showSummary(){
+  const since=st.seen,away=(st.t-since)/1000;
+  if(away<25){st.seen=st.t;st.snap={births:st.stats.births,deaths:st.stats.deaths};return;}
+  const ev=st.log.filter(e=>e.t>since),b=st.stats.births-st.snap.births,d=st.stats.deaths-st.snap.deaths,alive=st.sp.filter(s=>!s.extinct).length;
+  let html=`<h3>Mientras no mirabas · ${fmtDur(away)}</h3><div class="l">${CATS[WX.cat].i} ${CATS[WX.cat].t}${cfg.loc&&cfg.mode==='auto'?' en '+cfg.loc.name:''} · ${Math.round(WX.temp)} °C</div><div class="l">Han nacido <b>${b}</b> y han muerto <b>${d}</b>.</div>`;
+  const ar=ev.filter(e=>e.type==='llegada'),nw=ev.filter(e=>e.type==='nueva'),ex=ev.filter(e=>e.type==='extinta'),ot=ev.filter(e=>e.type==='hito');
+  ar.slice(-2).forEach(e=>html+=`<div class="l a">➜ ${e.txt}</div>`);
+  if(nw.length<=2)nw.forEach(e=>html+=`<div class="l n">✦ ${e.txt}</div>`);else html+=`<div class="l n">✦ ${nw.length} especies nuevas. La última: ${nw[nw.length-1].txt.replace(/^Nueva especie[^:]*: /,'')}</div>`;
+  if(ex.length<=2)ex.forEach(e=>html+=`<div class="l x">† ${e.txt}</div>`);else html+=`<div class="l x">† ${ex.length} extinciones. La última: ${ex[ex.length-1].txt.replace(/^Se extinguió /,'')}</div>`;
+  ot.slice(-1).forEach(e=>html+=`<div class="l">◆ ${e.txt}</div>`);
+  ev.filter(e=>e.type==='carga'||e.type==='tiempo').slice(-2).forEach(e=>html+=`<div class="l">${e.type==='carga'?'⚡ ':''}${e.txt}</div>`);
+  html+=`<div class="l" style="opacity:.7">Ahora: ${st.cr.length} criaturas · ${alive} especies</div>`;
+  toast.innerHTML=html;toast.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>toast.classList.remove('on'),10000);
+  st.seen=st.t;st.snap={births:st.stats.births,deaths:st.stats.deaths};
+}
+function fmtDur(s){if(s<90)return Math.round(s)+' s';if(s<5400)return Math.round(s/60)+' min';if(s<172800)return (s/3600).toFixed(s<36000?1:0).replace('.',',')+' h';return Math.round(s/86400)+' días';}
+function fmtDate(t){const d=new Date(t);return d.toLocaleDateString('es-ES',{day:'numeric',month:'short'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});}
+
+/* ================= panel ================= */
+let tab='mapa';
+function openPanel(){$('#panel').classList.add('on');drawPanel();}
+function closePanel(){$('#panel').classList.remove('on');}
+function goBiome(b){sub.tx=clamp(b.cx,MINX+30,MAXX-30);sub.ty=clamp(floorAt(sub.tx)*.5,12,floorAt(sub.tx)-20);sub.state='go';sub.follow=null;sub.userFollow=false;sub.poi={nm:b.nm};cam.manual=0;}
+function drawPanel(){
+  document.querySelectorAll('#tabs [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  const B=$('#body');
+  if(tab==='mapa'){
+    const rows=BIOMES.map(b=>{const n=st.cr.filter(c=>c.x>=b.x0&&c.x<b.x1).length,sps=new Set(st.cr.filter(c=>c.x>=b.x0&&c.x<b.x1).map(c=>c.sp)).size;
+      return `<div class="bio"><i style="background:${b.col}"></i><span><b style="color:#ffe9a8;font-weight:normal">${b.nm}</b><br><span style="opacity:.7">${n} bichos · ${sps} especies · ${Math.round(b.floor*2.2)} m · ${toC(b.temp)} °C</span></span><button class="btn" data-b="${b.i}">Ir</button></div>`;}).join('');
+    const cnt={};for(const p of ORDER)cnt[p]=0;for(const c of st.cr)cnt[c.plan]++;const mx=Math.max(1,...Object.values(cnt));
+    const alive=st.sp.filter(s=>!s.extinct);
+    const pops=ORDER.filter(p=>cnt[p]||st.sp.some(s=>s.plan===p)).map(p=>{const s=alive.find(q=>q.plan===p)||st.sp.slice().reverse().find(q=>q.plan===p);
+      return `<div class="pop">${s?`<img src="${icon(s)}" alt="">`:'<img alt="">'}<span>${PLANS[p].nm}: ${cnt[p]}</span><div class="bar"><i style="width:${cnt[p]/mx*100}%"></i></div></div>`;}).join('');
+    const SS=season(Date.now()),A=astro(Date.now());
+    B.innerHTML=`<div class="st">
+      <div><b>${cap(SS.name)}</b><small>hielo polar ${Math.round((ICE1-ICE0)/(ICE1-ICE_BASE+230)*100)} % · ${moonPhaseName(A.age)}</small></div>
+      <div><b>${st.cr.length}</b><small>criaturas vivas</small></div><div><b>${alive.length}</b><small>especies vivas</small></div>
+      <div><b>${st.sp.filter(s=>s.extinct&&!s.left&&!s.evolved&&!s.minor).length}</b><small>extinciones</small></div><div><b>${st.stats.maxGen}</b><small>generación máxima</small></div>
+      <div><b>${(sub.dist*2.2/1000).toFixed(1).replace('.',',')} km</b><small>recorridos por el submarino</small></div><div><b>${fmtDur((st.t-st.created)/1000)}</b><small>edad del mar</small></div></div>
+      <div class="grp">Biomas · pulsa «Ir» para mandar el submarino</div>${rows}
+      <div class="grp">Población</div>${pops}
+      ${window.MarApp?'<div class="row"><button class="btn on" id="ponfondo">🌊 Poner como fondo de pantalla</button></div>':''}
+      <div class="grp">Opciones</div>
+      <div class="row"><button class="btn" id="reset">Reiniciar el mar</button></div>
+      <p class="note">Modo fondo de pantalla: añade <b>#fondo</b> al final del enlace para esconder el menú (mantén pulsado para abrir este panel). Toca un bicho para escanearlo y pulsa «Seguir» para que el submarino vaya tras él. </p>`;
+    B.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{goBiome(BIOMES[+b.dataset.b]);closePanel();});
+    if($('#ponfondo'))$('#ponfondo').onclick=()=>{try{window.MarApp.ponerFondo();}catch(e){}};
+    const r=$('#reset');let armed=false;r.onclick=()=>{if(!armed){armed=true;r.textContent='¿Seguro? Otra vez';setTimeout(()=>{armed=false;r.textContent='Reiniciar el mar';},3000);return;}
+      try{localStorage.removeItem(KEY);}catch(e){}location.reload();};
+  }else if(tab==='arbol'){
+    const ids=new Set(st.sp.map(s=>s.id)),kids={};st.sp.forEach(s=>{const p=s.parent&&ids.has(s.parent)?s.parent:0;(kids[p]=kids[p]||[]).push(s);});
+    const lv=new Map(),live=s=>{if(lv.has(s.id))return lv.get(s.id);const v=!s.extinct||(kids[s.id]||[]).some(live);lv.set(s.id,v);return v;};
+    let out='',count=0;
+    const node=(s,dep)=>{if(count++>700)return;const ind=Math.min(dep,9);
+      const tag=s.extinct?(s.left?'se fue':'† '+fmtDate(s.extinct)):s.alive+' vivos';
+      out+=`<div class="sp ${s.extinct?'ext':''}" style="padding-left:${ind*12}px">${dep?'<span class="br">└</span>':''}<img src="${icon(s)}" alt=""><div class="t"><b>${s.name}</b><span>${s.common} · ${BI[s.home]?BI[s.home].nm:''}</span></div><em>${tag}</em></div>`;
+      (kids[s.id]||[]).sort((a,b)=>live(b)-live(a)).forEach(k=>node(k,dep+1));};
+    for(const plan of ORDER){const roots=(kids[0]||[]).filter(s=>s.plan===plan);if(!roots.length)continue;
+      out+=`<div class="grp">${PLANS[plan].nm}</div>`;roots.sort((a,b)=>live(b)-live(a)).forEach(s=>node(s,0));}
+    B.innerHTML=`<p class="note">Cada bicho tiene una temperatura ideal en sus genes: si se va a un bioma más frío o más cálido gasta más energía, pero sus descendientes pueden adaptarse y acabar siendo otra especie.</p>`+out;
+  }else if(tab==='diario'){
+    B.innerHTML=st.log.slice().reverse().map(e=>`<div class="lg"><time>${fmtDate(e.t)}</time>${e.type==='nueva'?'✦ ':e.type==='extinta'?'† ':e.type==='llegada'?'➜ ':e.type==='carga'?'⚡ ':e.type==='tiempo'?'':'◆ '}${e.txt}</div>`).join('');
+  }else if(tab==='estado'){
+    let d=null;try{d=JSON.parse(localStorage.getItem('mar_diag')||'null');}catch(e){}
+    const ok=(b,t)=>`<div class="lg">${b?'✅':'⚠️'} ${t}</div>`;
+    if(!d){B.innerHTML=`<p class="note">Todavía no hay datos del fondo. Ponlo de fondo de pantalla, déjalo un rato a la vista (un minuto basta) y vuelve aquí.</p>`;return;}
+    const hace=fmtDur((Date.now()-d.t)/1000),load=Math.min(100,d.ms*d.fps/10),tot=d.vis+d.pau,vp=tot?d.vis/tot*100:0;
+    const wxOk=d.wx.src==='Open-Meteo'&&d.wx.ts&&Date.now()-d.wx.ts<2*3600e3;
+    B.innerHTML=`<p class="note">Datos que ha ido apuntando el fondo de pantalla (última vez: hace ${hace}). Se reinician cada vez que arranca.</p>
+      ${ok(d.fps>=12,`Va a <b>${d.fps.toFixed(0)} fps</b> mientras se ve (lo normal: 24 con batería, 30 cargando, 15 con poca batería).`)}
+      ${ok(d.ms<20,`Cada fotograma le cuesta <b>${d.ms.toFixed(1)} ms</b> de procesador: aproximadamente un <b>${load.toFixed(0)} %</b> de un núcleo mientras se ve.`)}
+      ${ok(d.pauses>0||d.pau>0,d.pauses>0?`Se ha pausado <b>${d.pauses===1?'1 vez':d.pauses+' veces'}</b> al dejar de verse (pantalla apagada u otra app delante): en esos ratos no gasta. Ha estado a la vista el <b>${vp.toFixed(0)} %</b> del tiempo.`:'Aún no se ha pausado ninguna vez: apaga la pantalla o abre otra app y vuelve a mirar.')}
+      ${ok(d.bat.real,d.bat.real?`Lee la batería: <b>${Math.round(d.bat.l*100)} %</b>${d.bat.c?' (cargando)':''}.`:'No está recibiendo la batería real.')}
+      ${ok(wxOk,wxOk?`Tiempo real de <b>${d.wx.loc||'?'}</b>: ${CATS[d.wx.cat].t.toLowerCase()} (consultado hace ${fmtDur((Date.now()-d.wx.ts)/1000)}).`:`El tiempo real no llega (${d.wx.src||'sin datos'}). Comprueba la ciudad en la pestaña Tiempo.`)}
+      ${ok(!d.err,d.err?`${d.err} errores. Último: <code>${d.errMsg.replace(/</g,'&lt;')}</code>`:'Sin errores.')}
+      <div class="lg">🐟 ${d.cr} criaturas · pantalla de ${d.W}×${d.H} píxeles de mar (×${d.S})</div>
+      <p class="note">Para ver el gasto real de batería: Ajustes de Android → Batería → Uso de batería → «Mar evolutivo». Si lo tienes a la vista a menudo, algo en torno a un 2-6 % al día es razonable para un fondo animado. Si pasa claramente de un 10 %, dímelo y lo aligero.</p>`;
+  }else{
+    const c=CATS[WX.cat],lv=cfg.loc?cfg.loc.name:'sin ubicación',age=wxLive.ts?fmtDur((Date.now()-wxLive.ts)/1000):'—';
+    B.innerHTML=`<div class="wx">${c.i} ${c.t} · ${Math.round(WX.temp)} °C · viento ${Math.round(WX.wind)} km/h</div>
+      <p class="note">${cfg.mode==='auto'?`Tiempo real en <b>${lv}</b> (${wxLive.src}${wxLive.ts?', hace '+age:''}).`:'Modo manual: el tiempo real está desactivado.'}</p>
+      <div class="grp">Tu ciudad</div>
+      <div class="row"><input id="city" placeholder="p. ej. Leganés" value=""><button class="btn" id="citybtn" style="flex:0 0 90px">Buscar</button></div>
+      <div class="grp">Modo</div>
+      <div class="modes">${['auto','despejado','nublado','niebla','lluvia','tormenta','nieve'].map(m=>`<button class="btn ${cfg.mode===m?'on':''}" data-m="${m}">${m==='auto'?'🛰️ auto':CATS[m].i+' '+m}</button>`).join('')}</div>
+      <div class="grp">Batería del submarino</div>
+      <p class="note">${bat.real?`${Math.round(bat.level*100)} % · ${bat.charging?'cargando':'sin cargar'}`:'Este navegador no da la batería (se usa 85 %).'}${simCharge!=null?' · <b>carga simulada</b>':''}</p>
+      <div class="row"><button class="btn" id="simc">${charging()?'Simular: desenchufar':'Simular: enchufar'}</button><button class="btn" id="simr">Usar la real</button></div>
+      <p class="note">La batería del portátil es la del submarino: con poca, sus focos parpadean y sube a la superficie en modo ahorro. Al enchufar entra en <b>turbo</b>: va más rápido, echa chispas y suelta nutrientes que atraen a los bichos.<br><br>El tiempo afecta a la superficie: con <b>lluvia</b> los peces bajan, las gaviotas no cazan, los cangrejos se animan y llegan medusas; al parar florece el plancton. En <b>tormenta</b> hay corrientes y agua turbia en los primeros metros. El <b>frío</b> ralentiza y reduce el plancton. Las <b>nubes</b> y la <b>niebla</b> quitan luz.</p>`;
+    B.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{cfg.mode=b.dataset.m;saveCfg();computeWX();if(cfg.mode==='auto')fetchWX().then(drawPanel);drawPanel();});
+    $('#citybtn').onclick=async()=>{const q=$('#city').value.trim();if(!q)return;$('#citybtn').textContent='…';
+      try{cfg.loc=await geocode(q);saveCfg();await fetchWX();}catch(e){$('#citybtn').textContent='No va';setTimeout(drawPanel,1500);return;}drawPanel();};
+    $('#simc').onclick=()=>{simCharge=!charging();onCharge(simCharge);drawPanel();};
+    $('#simr').onclick=()=>{simCharge=null;onCharge(bat.charging);drawPanel();};
+  }
+}
+$('#tabs').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;if(t.id==='close'){closePanel();return;}tab=t.dataset.t;drawPanel();});
+$('#menuBtn').addEventListener('click',e=>{e.stopPropagation();openPanel();});
+
+/* ================= toques ================= */
+let down=null,lpT=null;
+// en modo fondo el ratón no mueve nada: solo mantener pulsado (quieto) abre el panel
+view.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,drag:false};lpT=NOPANEL?null:setTimeout(()=>{if(down&&!down.drag){down=null;openPanel();}},WALL?1000:650);});
+view.addEventListener('pointermove',e=>{if(!down)return;if(!down.drag&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>10){down.drag=true;clearTimeout(lpT);}
+  if(down.drag&&!WALL){cam.x-=(e.clientX-down.lx)/S;cam.y-=(e.clientY-down.ly)/S;cam.manual=12;cam.x=clamp(cam.x,W/2,WORLD_W-W/2);cam.y=clamp(cam.y,Math.min(TY0+H/2,40-H/2),WORLD_H-H/2-2);down.lx=e.clientX;down.ly=e.clientY;}});
+view.addEventListener('pointerup',e=>{clearTimeout(lpT);if(!down)return;const d=down;down=null;if(d.drag||WALL)return;
+  const wx=cam.x-W/2+MRG+e.clientX/S,wy=cam.y-H/2+MRG+e.clientY/S;
+  let best=null,bd=9;for(const c of st.cr){const dd=Math.hypot(c.x-wx,c.y-wy)-c.g.size*.5;if(dd<bd){bd=dd;best=c;}}
+  if(best){showScan(best);}
+  else if(wy>0&&wy<floorAt(wx)){for(let i=0;i<7;i++)food.push({x:clamp(wx+R(-5,5),MINX,MAXX),y:wy+R(-2,2),k:'p',e:12,v:R(3,6),a:0});}
+  $('#hint').style.opacity=0;toast.classList.remove('on');});
+view.addEventListener('pointercancel',()=>{clearTimeout(lpT);down=null;});
+addEventListener('wheel',e=>{if(WALL)return;cam.x=clamp(cam.x+(e.deltaX||e.deltaY)*.25,W/2,WORLD_W-W/2);cam.manual=10;},{passive:true});
+
+/* ================= arranque ================= */
+let DPR=1;
+let bioN=-1,bioTO=null,wxShown=null;
+function blit(){
+  if(CSSMODE){view.style.transform=`translate3d(${((RX-(cam.x-W/2+MRG))*S).toFixed(2)}px,${((RY-(cam.y-H/2+MRG))*S).toFixed(2)}px,0)`;}
+  else{const k=S*DPR;vctx.imageSmoothingEnabled=false;vctx.drawImage(cv,0,0,W,H,Math.round((RX-(cam.x-W/2+MRG))*k),Math.round((RY-(cam.y-H/2+MRG))*k),W*k,H*k);}
+  // nombre del bioma al entrar en uno nuevo y aviso del tiempo (texto normal, encima del mar)
+  const bi=biomeIdx(sub.x);if(bi!==bioN){const first=bioN<0;bioN=bi;if(!first){const b=BIOMES[bi],el=$('#bio');el.querySelector('b').textContent=b.nm;el.querySelector('span').textContent=`${Math.round(b.floor*2.2)} m de fondo · ${toC(b.temp)} °C`;el.style.opacity=.75;clearTimeout(bioTO);bioTO=setTimeout(()=>el.style.opacity=0,4500);}}
+  if(wxMsg&&wxShown!==wxMsg){wxShown=wxMsg;const el=$('#wxm');el.textContent=`${CATS[WX.cat].i}  ${wxMsg.txt}`;el.style.opacity=.8;setTimeout(()=>el.style.opacity=0,6500);}
+}
+function resize(){
+  // en vertical (móvil) píxeles más grandes: se ve mejor en pantalla pequeña y gasta menos
+  S=clamp(Math.round(Math.min(innerWidth,innerHeight)/(innerHeight>innerWidth*1.3?150:250)),2,6);
+  W=Math.ceil(innerWidth/S)+2*MRG;H=Math.ceil(innerHeight/S)+2*MRG;cv.width=W;cv.height=H;ctx.imageSmoothingEnabled=false;snowP=[];
+  DPR=window.devicePixelRatio||1;
+  if(CSSMODE){view.style.width=W*S+'px';view.style.height=H*S+'px';view.style.right='auto';view.style.bottom='auto';}
+  else{view.width=Math.round(innerWidth*DPR);view.height=Math.round(innerHeight*DPR);vctx.imageSmoothingEnabled=false;}
+}
+resize();addEventListener('resize',resize);
+const fresh=!load();
+if(fresh){const now=Date.now();st={created:now,t:now,seen:now,nextId:1,nextSp:1,cr:[],sp:[],fossils:[],log:[],corpses:[],stats:{births:0,deaths:0,eaten:0,maxGen:0,genMark:0},snap:{births:0,deaths:0},arr:0,chk:0,firsts:{}};}
+season(Date.now());buildPlants();buildTerrain();
+if(fresh)seedWorld();else{st.cr.forEach(c=>{c.dead=false;c.atDen=false;c.den=null;});}
+initSub();
+if(!fresh)queueCatchUp(st.t,Date.now());
+let PAUSED=false;window.__pause=b=>{const was=PAUSED;PAUSED=!!b;if(PAUSED&&!was){DG.pauses++;writeDiag();}if(!PAUSED)lastFrame=0;else save();};
+// diagnóstico: el fondo apunta cómo va y la app lo enseña en la pestaña Estado
+const DG={since:Date.now(),frames:0,ms:0,vis:0,pau:0,pauses:0,err:0,errMsg:'',last:Date.now()};
+addEventListener('error',e=>{DG.err++;DG.errMsg=String(e.message||e).slice(0,140);});
+addEventListener('unhandledrejection',e=>{DG.err++;DG.errMsg=String(e.reason).slice(0,140);});
+function writeDiag(){
+  if(!WALL||NOSAVE)return;
+  const now=Date.now(),el=(now-DG.last)/1000;DG.last=now;
+  const d={t:now,fps:DG.frames/Math.max(1,DG.vis),ms:DG.frames?DG.ms/DG.frames:0,vis:DG.vis,pau:DG.pau,pauses:DG.pauses,err:DG.err,errMsg:DG.errMsg,since:DG.since,
+    bat:{l:bat.level,c:charging(),real:bat.real},wx:{src:wxLive.src,ts:wxLive.ts,cat:WX.cat,loc:cfg.loc&&cfg.loc.name},cr:st.cr.length,W,H,S,DPR,ua:navigator.userAgent.slice(0,120)};
+  try{localStorage.setItem('mar_diag',JSON.stringify(d));}catch(e){}
+}
+setInterval(()=>{if(PAUSED)DG.pau+=5;},5000);
+setInterval(writeDiag,30000);
+let lastBlit=0;let simNow=Date.now(),lastSave=0,lastFrame=0,lastHud=0,lastMap=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  const MOB=/Android/.test(navigator.userAgent);
+  const minGap=charging()?(MOB?40:33):(bat.real&&bat.level<.2)?66:bat.real?(MOB?50:42):33;
+  if(PAUSED)return;
+  if(ts-lastFrame<minGap-2){
+    // fotograma intermedio: solo la cámara (barato) para que el desplazamiento vaya fluido
+    const gap=charging()||!bat.real?15:(bat.level<.2?1e9:20);
+    if(lastFrame&&ts-lastBlit>=gap-2){const d=Math.min(.05,(ts-lastBlit)/1000);lastBlit=ts;updateCam(d);blit();}
+    return;
+  }
+  const fdt=Math.min(.1,lastFrame?(ts-lastFrame)/1000:1/30);lastFrame=ts;const T0=performance.now();DG.vis+=fdt;
+  const now=Date.now();
+  if(catchQ)runCatchUp();
+  else{const dt=(now-simNow)/1000;if(dt>3)queueCatchUp(simNow,now);else if(dt>0)step(Math.min(dt,.12),now);}
+  simNow=now;window.__beat=now;
+  updateSub(fdt);updateCam(Math.min(.05,lastBlit?(ts-lastBlit)/1000:fdt));lastBlit=ts;
+  render(now,fdt);blit();DG.frames++;DG.ms+=performance.now()-T0;
+  if(now-lastHud>500){lastHud=now;updHUD();}
+  if(now-lastMap>1000){lastMap=now;drawMap();}
+  if(rebuildCorals){rebuildCorals=false;buildTerrain();}
+  if(now-lastSave>15000){lastSave=now;save();}
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)save();
+  else{const now=Date.now();if(!catchQ&&now-simNow>3000){queueCatchUp(simNow,now);simNow=now;}else showSummary();}
+});
+addEventListener('pagehide',save);
+setTimeout(()=>{$('#hint').style.opacity=0;},9000);
+window.__save=save;
+if(/ajustes/.test(location.hash))setTimeout(()=>{toast.classList.remove('on');openPanel();},600);
+window.__setBattery=(l,c)=>{bat.level=clamp(+l,0,1);bat.charging=!!c;bat.real=true;onCharge(charging());};
+initLoc();
+if(fresh){toast.innerHTML='<h3>Empieza la expedición</h3><div class="l">El submarino recorre un mar con ocho biomas, del manglar a la fosa abisal y el hielo polar. Cada uno tiene su fauna y evoluciona por su cuenta. Toca un bicho para escanearlo.</div>';toast.classList.add('on');toastT=setTimeout(()=>toast.classList.remove('on'),8000);}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
