@@ -22,7 +22,7 @@ Cada dispositivo guarda su propio mar.
 
 ## Android (app propia)
 
-Descarga el APK: **https://github.com/Alex-og-master/mar-evolutivo/releases/download/movil/mar-evolutivo.apk**
+Descarga el APK: **https://alex-og-master.github.io/mar-evolutivo/mar-evolutivo.apk** (o en Releases)
 
 Se compila solo con GitHub Actions cada vez que cambia algo (`.github/workflows/android.yml`).
 Instálalo, abre «Mar evolutivo», mantén pulsado el mar y pulsa «Poner como fondo de pantalla».

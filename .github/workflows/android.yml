@@ -3,6 +3,7 @@ name: APK para Android
 on:
   push:
     branches: [main]
+    paths-ignore: ['mar-evolutivo.apk']
   workflow_dispatch:
 
 permissions:
@@ -27,6 +28,12 @@ jobs:
         run: gradle :app:assembleRelease --no-daemon --stacktrace
       - name: Preparar
         run: cp android/app/build/outputs/apk/release/app-release.apk mar-evolutivo.apk
+      - name: Dejar el APK también en la web (descarga directa desde github.io)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f mar-evolutivo.apk
+          git diff --cached --quiet || (git commit -m "APK actualizado [skip ci]" && git push)
       - name: Publicar en Releases
         uses: softprops/action-gh-release@v2
         with:
