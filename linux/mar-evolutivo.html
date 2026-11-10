@@ -86,6 +86,7 @@ p.note{font-size:12px;opacity:.75;line-height:1.5}
     <button data-t="arbol">Árbol</button>
     <button data-t="diario">Diario</button>
     <button data-t="tiempo">Tiempo</button>
+    <button data-t="estado">Estado</button>
     <button id="close">✕</button>
   </div>
   <div id="body"></div>
@@ -1600,6 +1601,21 @@ function drawPanel(){
     B.innerHTML=`<p class="note">Cada bicho tiene una temperatura ideal en sus genes: si se va a un bioma más frío o más cálido gasta más energía, pero sus descendientes pueden adaptarse y acabar siendo otra especie.</p>`+out;
   }else if(tab==='diario'){
     B.innerHTML=st.log.slice().reverse().map(e=>`<div class="lg"><time>${fmtDate(e.t)}</time>${e.type==='nueva'?'✦ ':e.type==='extinta'?'† ':e.type==='llegada'?'➜ ':e.type==='carga'?'⚡ ':e.type==='tiempo'?'':'◆ '}${e.txt}</div>`).join('');
+  }else if(tab==='estado'){
+    let d=null;try{d=JSON.parse(localStorage.getItem('mar_diag')||'null');}catch(e){}
+    const ok=(b,t)=>`<div class="lg">${b?'✅':'⚠️'} ${t}</div>`;
+    if(!d){B.innerHTML=`<p class="note">Todavía no hay datos del fondo. Ponlo de fondo de pantalla, déjalo un rato a la vista (un minuto basta) y vuelve aquí.</p>`;return;}
+    const hace=fmtDur((Date.now()-d.t)/1000),load=Math.min(100,d.ms*d.fps/10),tot=d.vis+d.pau,vp=tot?d.vis/tot*100:0;
+    const wxOk=d.wx.src==='Open-Meteo'&&d.wx.ts&&Date.now()-d.wx.ts<2*3600e3;
+    B.innerHTML=`<p class="note">Datos que ha ido apuntando el fondo de pantalla (última vez: hace ${hace}). Se reinician cada vez que arranca.</p>
+      ${ok(d.fps>=12,`Va a <b>${d.fps.toFixed(0)} fps</b> mientras se ve (lo normal: 24 con batería, 30 cargando, 15 con poca batería).`)}
+      ${ok(d.ms<20,`Cada fotograma le cuesta <b>${d.ms.toFixed(1)} ms</b> de procesador: aproximadamente un <b>${load.toFixed(0)} %</b> de un núcleo mientras se ve.`)}
+      ${ok(d.pauses>0||d.pau>0,d.pauses>0?`Se ha pausado <b>${d.pauses===1?'1 vez':d.pauses+' veces'}</b> al dejar de verse (pantalla apagada u otra app delante): en esos ratos no gasta. Ha estado a la vista el <b>${vp.toFixed(0)} %</b> del tiempo.`:'Aún no se ha pausado ninguna vez: apaga la pantalla o abre otra app y vuelve a mirar.')}
+      ${ok(d.bat.real,d.bat.real?`Lee la batería: <b>${Math.round(d.bat.l*100)} %</b>${d.bat.c?' (cargando)':''}.`:'No está recibiendo la batería real.')}
+      ${ok(wxOk,wxOk?`Tiempo real de <b>${d.wx.loc||'?'}</b>: ${CATS[d.wx.cat].t.toLowerCase()} (consultado hace ${fmtDur((Date.now()-d.wx.ts)/1000)}).`:`El tiempo real no llega (${d.wx.src||'sin datos'}). Comprueba la ciudad en la pestaña Tiempo.`)}
+      ${ok(!d.err,d.err?`${d.err} errores. Último: <code>${d.errMsg.replace(/</g,'&lt;')}</code>`:'Sin errores.')}
+      <div class="lg">🐟 ${d.cr} criaturas · pantalla de ${d.W}×${d.H} píxeles de mar (×${d.S})</div>
+      <p class="note">Para ver el gasto real de batería: Ajustes de Android → Batería → Uso de batería → «Mar evolutivo». Si lo tienes a la vista a menudo, algo en torno a un 2-6 % al día es razonable para un fondo animado. Si pasa claramente de un 10 %, dímelo y lo aligero.</p>`;
   }else{
     const c=CATS[WX.cat],lv=cfg.loc?cfg.loc.name:'sin ubicación',age=wxLive.ts?fmtDur((Date.now()-wxLive.ts)/1000):'—';
     B.innerHTML=`<div class="wx">${c.i} ${c.t} · ${Math.round(WX.temp)} °C · viento ${Math.round(WX.wind)} km/h</div>
@@ -1661,7 +1677,20 @@ season(Date.now());buildPlants();buildTerrain();
 if(fresh)seedWorld();else{st.cr.forEach(c=>{c.dead=false;c.atDen=false;c.den=null;});}
 initSub();
 if(!fresh)queueCatchUp(st.t,Date.now());
-let PAUSED=false;window.__pause=b=>{PAUSED=!!b;if(!PAUSED)lastFrame=0;else save();};
+let PAUSED=false;window.__pause=b=>{const was=PAUSED;PAUSED=!!b;if(PAUSED&&!was){DG.pauses++;writeDiag();}if(!PAUSED)lastFrame=0;else save();};
+// diagnóstico: el fondo apunta cómo va y la app lo enseña en la pestaña Estado
+const DG={since:Date.now(),frames:0,ms:0,vis:0,pau:0,pauses:0,err:0,errMsg:'',last:Date.now()};
+addEventListener('error',e=>{DG.err++;DG.errMsg=String(e.message||e).slice(0,140);});
+addEventListener('unhandledrejection',e=>{DG.err++;DG.errMsg=String(e.reason).slice(0,140);});
+function writeDiag(){
+  if(!WALL||NOSAVE)return;
+  const now=Date.now(),el=(now-DG.last)/1000;DG.last=now;
+  const d={t:now,fps:DG.frames/Math.max(1,DG.vis),ms:DG.frames?DG.ms/DG.frames:0,vis:DG.vis,pau:DG.pau,pauses:DG.pauses,err:DG.err,errMsg:DG.errMsg,since:DG.since,
+    bat:{l:bat.level,c:charging(),real:bat.real},wx:{src:wxLive.src,ts:wxLive.ts,cat:WX.cat,loc:cfg.loc&&cfg.loc.name},cr:st.cr.length,W,H,S,DPR,ua:navigator.userAgent.slice(0,120)};
+  try{localStorage.setItem('mar_diag',JSON.stringify(d));}catch(e){}
+}
+setInterval(()=>{if(PAUSED)DG.pau+=5;},5000);
+setInterval(writeDiag,30000);
 let lastBlit=0;let simNow=Date.now(),lastSave=0,lastFrame=0,lastHud=0,lastMap=0;
 function loop(ts){
   requestAnimationFrame(loop);
@@ -1673,13 +1702,13 @@ function loop(ts){
     if(lastFrame&&ts-lastBlit>=gap-2){const d=Math.min(.05,(ts-lastBlit)/1000);lastBlit=ts;updateCam(d);blit();}
     return;
   }
-  const fdt=Math.min(.1,lastFrame?(ts-lastFrame)/1000:1/30);lastFrame=ts;
+  const fdt=Math.min(.1,lastFrame?(ts-lastFrame)/1000:1/30);lastFrame=ts;const T0=performance.now();DG.vis+=fdt;
   const now=Date.now();
   if(catchQ)runCatchUp();
   else{const dt=(now-simNow)/1000;if(dt>3)queueCatchUp(simNow,now);else if(dt>0)step(Math.min(dt,.12),now);}
   simNow=now;window.__beat=now;
   updateSub(fdt);updateCam(Math.min(.05,lastBlit?(ts-lastBlit)/1000:fdt));lastBlit=ts;
-  render(now,fdt);blit();
+  render(now,fdt);blit();DG.frames++;DG.ms+=performance.now()-T0;
   if(now-lastHud>500){lastHud=now;updHUD();}
   if(now-lastMap>1000){lastMap=now;drawMap();}
   if(rebuildCorals){rebuildCorals=false;buildTerrain();}
