@@ -858,7 +858,7 @@ function updateCam(dt){
   if(cam.manual>0){cam.manual-=dt;cam.vx=cam.vy=0;}
   else{
     let fl=0;for(let k=-W*.5;k<=W*.5;k+=8)fl+=floorAt(sub.x+k);fl/=Math.floor(W/8)+1;
-    const wantX=sub.x+sub.look*W*.12,wantY=Math.max(Math.min(sub.y+(H>W?H*.12:0),fl+Math.min(90,H*.28)-H/2),sub.y-H*.38);
+    const wantX=sub.x+sub.look*W*.12,wantY=Math.max(Math.min(sub.y+(H>W?H*.12:0),fl+Math.min(90,H*.2)-H/2),sub.y-H*.38);
     cam.tx=cam.tx==null?wantX:lerp(cam.tx,wantX,Math.min(1,dt*.6));cam.ty=cam.ty==null?wantY:lerp(cam.ty,wantY,Math.min(1,dt*.4));
     const k=1.6,c=2*Math.sqrt(k);cam.vx=(cam.vx||0)+((cam.tx-cam.x)*k-(cam.vx||0)*c)*dt;cam.vy=(cam.vy||0)+((cam.ty-cam.y)*k-(cam.vy||0)*c)*dt;
     const mv=Math.hypot(cam.vx,cam.vy),mx=30;if(mv>mx){cam.vx*=mx/mv;cam.vy*=mx/mv;}
@@ -1620,8 +1620,8 @@ function drawPanel(){
     const hace=fmtDur((Date.now()-d.t)/1000),load=Math.min(100,d.ms*d.fps/10),tot=d.vis+d.pau,vp=tot?d.vis/tot*100:0;
     const wxOk=d.wx.src==='Open-Meteo'&&d.wx.ts&&Date.now()-d.wx.ts<2*3600e3;
     B.innerHTML=`<p class="note">Datos que ha ido apuntando el fondo de pantalla (última vez: hace ${hace}). Se reinician cada vez que arranca.</p>
-      ${ok(d.fps>=12,`Va a <b>${d.fps.toFixed(0)} fps</b> mientras se ve (lo normal: 24 con batería, 30 cargando, 15 con poca batería).`)}
-      ${ok(d.ms<20,`Cada fotograma le cuesta <b>${d.ms.toFixed(1)} ms</b> de procesador: aproximadamente un <b>${load.toFixed(0)} %</b> de un núcleo mientras se ve.`)}
+      ${ok(d.fps>=12,`Va a <b>${d.fps.toFixed(0)} fps</b> mientras se ve (lo normal en el móvil: 15 con batería, 20 cargando, 10 con poca batería).`)}
+      ${ok(d.ms*d.fps<350,`Cada fotograma le cuesta <b>${d.ms.toFixed(1)} ms</b> de procesador: aproximadamente un <b>${load.toFixed(0)} %</b> de un núcleo mientras se ve${d.sm!=null?` (simulación ${d.sm.toFixed(1)} ms · dibujo ${d.rm.toFixed(1)} ms)`:''}.`)}
       ${ok(d.pauses>0||d.pau>0,d.pauses>0?`Se ha pausado <b>${d.pauses===1?'1 vez':d.pauses+' veces'}</b> al dejar de verse (pantalla apagada u otra app delante): en esos ratos no gasta. Ha estado a la vista el <b>${vp.toFixed(0)} %</b> del tiempo.`:'Aún no se ha pausado ninguna vez: apaga la pantalla o abre otra app y vuelve a mirar.')}
       ${ok(d.bat.real,d.bat.real?`Lee la batería: <b>${Math.round(d.bat.l*100)} %</b>${d.bat.c?' (cargando)':''}.`:'No está recibiendo la batería real.')}
       ${ok(wxOk,wxOk?`Tiempo real de <b>${d.wx.loc||'?'}</b>: ${CATS[d.wx.cat].t.toLowerCase()} (consultado hace ${fmtDur((Date.now()-d.wx.ts)/1000)}).`:`El tiempo real no llega (${d.wx.src||'sin datos'}). Comprueba la ciudad en la pestaña Tiempo.`)}
@@ -1677,7 +1677,7 @@ function blit(){
 }
 function resize(){
   // en vertical (móvil) píxeles más grandes: se ve mejor en pantalla pequeña y gasta menos
-  S=clamp(Math.round(Math.min(innerWidth,innerHeight)/(innerHeight>innerWidth*1.3?150:250)),2,6);
+  S=clamp(Math.round(Math.min(innerWidth,innerHeight)/(innerHeight>innerWidth*1.3?105:250)),2,6);
   W=Math.ceil(innerWidth/S)+2*MRG;H=Math.ceil(innerHeight/S)+2*MRG;cv.width=W;cv.height=H;ctx.imageSmoothingEnabled=false;snowP=[];
   DPR=window.devicePixelRatio||1;
   if(CSSMODE){view.style.width=W*S+'px';view.style.height=H*S+'px';view.style.right='auto';view.style.bottom='auto';}
@@ -1692,13 +1692,13 @@ initSub();
 if(!fresh)queueCatchUp(st.t,Date.now());
 let PAUSED=false,pausedAt=0;window.__pause=b=>{const was=PAUSED;PAUSED=!!b;if(PAUSED&&!was){DG.pauses++;pausedAt=Date.now();writeDiag();}if(!PAUSED){lastFrame=0;if(was&&WALL&&Date.now()-pausedAt>45000)try{subJump();}catch(e){}}else save();};
 // diagnóstico: el fondo apunta cómo va y la app lo enseña en la pestaña Estado
-const DG={since:Date.now(),frames:0,ms:0,vis:0,pau:0,pauses:0,err:0,errMsg:'',last:Date.now()};
+const DG={since:Date.now(),frames:0,ms:0,sm:0,rm:0,vis:0,pau:0,pauses:0,err:0,errMsg:'',last:Date.now()};
 addEventListener('error',e=>{DG.err++;DG.errMsg=String(e.message||e).slice(0,140);});
 addEventListener('unhandledrejection',e=>{DG.err++;DG.errMsg=String(e.reason).slice(0,140);});
 function writeDiag(){
   if(!WALL||NOSAVE)return;
   const now=Date.now(),el=(now-DG.last)/1000;DG.last=now;
-  const d={t:now,fps:DG.frames/Math.max(1,DG.vis),ms:DG.frames?DG.ms/DG.frames:0,vis:DG.vis,pau:DG.pau,pauses:DG.pauses,err:DG.err,errMsg:DG.errMsg,since:DG.since,
+  const d={t:now,fps:DG.frames/Math.max(1,DG.vis),ms:DG.frames?DG.ms/DG.frames:0,sm:DG.frames?DG.sm/DG.frames:0,rm:DG.frames?DG.rm/DG.frames:0,vis:DG.vis,pau:DG.pau,pauses:DG.pauses,err:DG.err,errMsg:DG.errMsg,since:DG.since,
     bat:{l:bat.level,c:charging(),real:bat.real},wx:{src:wxLive.src,ts:wxLive.ts,cat:WX.cat,loc:cfg.loc&&cfg.loc.name},cr:st.cr.length,W,H,S,DPR,ua:navigator.userAgent.slice(0,120)};
   try{localStorage.setItem('mar_diag',JSON.stringify(d));}catch(e){}
 }
@@ -1708,11 +1708,11 @@ let lastBlit=0;let simNow=Date.now(),lastSave=0,lastFrame=0,lastHud=0,lastMap=0;
 function loop(ts){
   requestAnimationFrame(loop);
   const MOB=/Android/.test(navigator.userAgent);
-  const minGap=charging()?(MOB?40:33):(bat.real&&bat.level<.2)?66:bat.real?(MOB?50:42):33;
+  const minGap=charging()?(MOB?50:33):(bat.real&&bat.level<.2)?(MOB?100:66):bat.real?(MOB?66:42):33;
   if(PAUSED)return;
   if(ts-lastFrame<minGap-2){
     // fotograma intermedio: solo la cámara (barato) para que el desplazamiento vaya fluido
-    const gap=charging()||!bat.real?15:(bat.level<.2?1e9:20);
+    const gap=MOB?(charging()?25:bat.level<.2?1e9:33):charging()||!bat.real?15:(bat.level<.2?1e9:20);
     if(lastFrame&&ts-lastBlit>=gap-2){const d=Math.min(.05,(ts-lastBlit)/1000);lastBlit=ts;updateCam(d);blit();}
     return;
   }
@@ -1721,8 +1721,9 @@ function loop(ts){
   if(catchQ)runCatchUp();
   else{const dt=(now-simNow)/1000;if(dt>3)queueCatchUp(simNow,now);else if(dt>0)step(Math.min(dt,.12),now);}
   simNow=now;window.__beat=now;
+  const T1=performance.now();DG.sm+=T1-T0;
   updateSub(fdt);updateCam(Math.min(.05,lastBlit?(ts-lastBlit)/1000:fdt));lastBlit=ts;
-  render(now,fdt);blit();DG.frames++;DG.ms+=performance.now()-T0;
+  render(now,fdt);blit();DG.frames++;DG.ms+=performance.now()-T0;DG.rm+=performance.now()-T1;
   if(now-lastHud>500){lastHud=now;updHUD();}
   if(now-lastMap>1000){lastMap=now;drawMap();}
   if(rebuildCorals){rebuildCorals=false;buildTerrain();}
