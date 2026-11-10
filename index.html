@@ -29,7 +29,9 @@ canvas#c{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelat
 #scan button{margin-top:8px;width:100%}
 #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 90px);left:0;right:0;text-align:center;font-size:12px;opacity:.8;pointer-events:none;transition:opacity 1s;text-shadow:1px 1px 0 #000;z-index:3}
 #ff{position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:50%;transform:translateX(-50%);font-size:12px;color:#7fe0c8;opacity:0;transition:opacity .4s;text-shadow:1px 1px 0 #000;z-index:4}
-body.wall #hud,body.wall #map,body.wall #toast,body.wall #scan,body.wall #hint,body.wall #ff,body.wall #menuBtn{display:none!important}
+#hud,#map{display:none!important}
+body.wall #toast,body.wall #scan,body.wall #hint,body.wall #ff,body.wall #menuBtn{display:none!important}
+body.app #hint,body.app #menuBtn,body.app #ff{display:none!important}
 #menuBtn{position:fixed;top:calc(env(safe-area-inset-top) + 6px);right:8px;width:38px;height:38px;border:0;background:transparent;color:#9fd;font-size:20px;opacity:.5;z-index:4}
 #panel{position:fixed;inset:0;background:rgba(2,9,18,.94);z-index:10;display:none;flex-direction:column;padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 12px)}
 #panel.on{display:flex}
@@ -98,6 +100,7 @@ const view=$('#c'),vctx=view.getContext('2d');
 const cv=document.createElement('canvas'),ctx=cv.getContext('2d');
 const WALL=/fondo|wallpaper/.test(location.search+location.hash);
 if(WALL)document.body.classList.add('wall');
+if(/ajustes/.test(location.hash))document.body.classList.add('app');
 const NOPANEL=/nopanel/.test(location.hash),NOSAVE=/preview/.test(location.hash);
 const rnd=Math.random,R=(a,b)=>a+rnd()*(b-a),RI=n=>Math.floor(rnd()*n),clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const gauss=()=>(rnd()+rnd()+rnd()-1.5)*1.15,pick=a=>a[RI(a.length)],lerp=(a,b,t)=>a+(b-a)*t;
@@ -1496,7 +1499,7 @@ const sSubCache=[];
 const hud=$('#hud'),mapC=$('#map'),mapX=mapC.getContext('2d');
 const toC=v=>Math.round(30-v*32);
 function updHUD(){
-  if(!cfg.hud||WALL){hud.style.display='none';mapC.style.display='none';return;}
+  if(true){hud.style.display='none';mapC.style.display='none';return;}
   hud.style.display='';mapC.style.display='';
   const b=BIOMES[biomeIdx(sub.x)],depth=Math.round(Math.max(0,sub.y)*2.2),tC=toC(tempAt(sub.x,Math.max(0,sub.y))),bt=subBat(),ch=charging();
   let nearN=0;for(const c of st.cr)if(Math.abs(c.x-sub.x)<W*.6&&Math.abs(c.y-sub.y)<H*.6)nearN++;
@@ -1505,7 +1508,7 @@ function updHUD(){
   hud.innerHTML=`<b>${b.nm}</b><br>${depth} m · ${tC} °C · ${nearN} bichos cerca<br><span class="bat"><i style="width:${Math.round(bt*18)}px;${bt<.15?'background:#ff6b5b':''}"></i></span>${Math.round(bt*100)}%${mode}<br><span style="opacity:.7">${tgt}${depth<10?' · '+CATS[WX.cat].i+' '+Math.round(WX.temp)+' °C fuera':''}</span>`;
 }
 function drawMap(){
-  if(!cfg.hud||WALL)return;
+  return;
   const dpr=Math.min(2,devicePixelRatio||1),mw=Math.round(mapC.clientWidth*dpr),mh=Math.round(mapC.clientHeight*dpr);
   if(mapC.width!==mw||mapC.height!==mh){mapC.width=mw;mapC.height=mh;}
   const sx=mw/WORLD_W,sy=(mh-4)/(WORLD_H*.98),X=mapX;X.clearRect(0,0,mw,mh);
@@ -1578,11 +1581,10 @@ function drawPanel(){
       <div class="grp">Población</div>${pops}
       ${window.MarApp?'<div class="row"><button class="btn on" id="ponfondo">🌊 Poner como fondo de pantalla</button></div>':''}
       <div class="grp">Opciones</div>
-      <div class="row"><button class="btn ${cfg.hud?'on':''}" id="hudb">HUD y minimapa: ${cfg.hud?'sí':'no'}</button><button class="btn" id="reset">Reiniciar el mar</button></div>
-      <p class="note">Modo fondo de pantalla: añade <b>#fondo</b> al final del enlace para esconder el menú (mantén pulsado para abrir este panel). Toca un bicho para escanearlo y pulsa «Seguir» para que el submarino vaya tras él. Toca el minimapa para mandar el submarino a ese punto.</p>`;
+      <div class="row"><button class="btn" id="reset">Reiniciar el mar</button></div>
+      <p class="note">Modo fondo de pantalla: añade <b>#fondo</b> al final del enlace para esconder el menú (mantén pulsado para abrir este panel). Toca un bicho para escanearlo y pulsa «Seguir» para que el submarino vaya tras él. </p>`;
     B.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{goBiome(BIOMES[+b.dataset.b]);closePanel();});
     if($('#ponfondo'))$('#ponfondo').onclick=()=>{try{window.MarApp.ponerFondo();}catch(e){}};
-    $('#hudb').onclick=()=>{cfg.hud=!cfg.hud;saveCfg();updHUD();drawPanel();};
     const r=$('#reset');let armed=false;r.onclick=()=>{if(!armed){armed=true;r.textContent='¿Seguro? Otra vez';setTimeout(()=>{armed=false;r.textContent='Reiniciar el mar';},3000);return;}
       try{localStorage.removeItem(KEY);}catch(e){}location.reload();};
   }else if(tab==='arbol'){

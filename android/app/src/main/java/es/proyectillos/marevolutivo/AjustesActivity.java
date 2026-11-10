@@ -1,6 +1,7 @@
 package es.proyectillos.marevolutivo;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.WallpaperInfo;
 import android.app.WallpaperManager;
 import android.content.ComponentName;
@@ -28,7 +29,12 @@ public class AjustesActivity extends Activity {
         bateria.registrar(this);
         web.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         if (!esNuestroFondo()) {
-            Toast.makeText(this, "Mantén pulsado el mar para abrir el panel. Desde ahí puedes ponerlo de fondo.", Toast.LENGTH_LONG).show();
+            new AlertDialog.Builder(this)
+                    .setTitle("Mar evolutivo")
+                    .setMessage("¿Lo pongo como fondo de pantalla?\n\nEn la siguiente pantalla pulsa «Establecer fondo» (o «Aplicar»). Si te pregunta, elige pantalla de inicio o las dos.\n\nEsta app es también los ajustes: mantén pulsado el mar para abrir el panel (ciudad, árbol, diario…).")
+                    .setPositiveButton("Poner de fondo", (d, w) -> ponerFondo())
+                    .setNegativeButton("Ahora no", null)
+                    .show();
         }
     }
 
