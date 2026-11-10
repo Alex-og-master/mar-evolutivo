@@ -1,5 +1,7 @@
 plugins { id 'com.android.application' }
 
+def runNum = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as Integer
+
 android {
     namespace 'es.proyectillos.marevolutivo'
     compileSdk 34
@@ -7,8 +9,8 @@ android {
         applicationId 'es.proyectillos.marevolutivo'
         minSdk 24
         targetSdk 34
-        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
-        versionName "1.0." + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+        versionCode runNum
+        versionName "1.0." + runNum
     }
     signingConfigs {
         // clave fija para que las actualizaciones se instalen encima sin perder el mar
@@ -20,13 +22,19 @@ android {
         }
     }
     buildTypes {
-        release { minifyEnabled false; signingConfig signingConfigs.mar }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.mar
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    lint { checkReleaseBuilds false; abortOnError false }
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
 }
 
 dependencies { implementation 'androidx.webkit:webkit:1.11.0' }
