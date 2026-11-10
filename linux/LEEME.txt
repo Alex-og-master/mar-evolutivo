@@ -1,0 +1,31 @@
+MAR EVOLUTIVO · fondo de pantalla para Linux
+============================================
+
+Instalar (una sola vez):
+    tar xzf mar-evolutivo.tar.gz
+    cd mar-evolutivo
+    ./instalar.sh
+
+El instalador comprueba si tienes WebKitGTK para Python. Si falta, te
+dice el comando exacto que va a ejecutar (con sudo) y te pregunta antes.
+
+Después:
+  · El mar arranca solo al iniciar sesión, detrás de los iconos y
+    ocupando todas tus pantallas como una sola panorámica.
+  · Como fondo no tiene ninguna interfaz: solo el mar y, al cambiar de
+    bioma, su nombre durante unos segundos.
+  · En el menú de aplicaciones:
+      «Mar evolutivo»             lo arranca
+      «Ajustes del mar evolutivo» lo abre en una ventana con el panel
+                                  (pon tu ciudad en Tiempo, mira el árbol,
+                                  el diario, manda el submarino a un bioma…).
+                                  Al cerrar la ventana vuelve a ser el fondo.
+      «Parar mar evolutivo»       lo quita
+  · La batería y el cargador del portátil se leen del sistema.
+
+El mar solo avanza mientras está en marcha: al apagar el portátil se queda
+quieto y al encenderlo sigue justo donde estaba (sin ponerse al día).
+
+Desinstalar:                      ~/.local/share/mar-evolutivo/desinstalar.sh
+Tu mar se guarda en:              ~/.local/share/mar-evolutivo/web
+Registro (si algo falla):         ~/.local/share/mar-evolutivo/registro.log
