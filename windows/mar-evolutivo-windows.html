@@ -820,7 +820,7 @@ function initSub(){
 }
 // tras un rato sin mirar el fondo, el submarino aparece en otro sitio, como si hubiese seguido explorando
 function subJump(){const p=pickPOI();sub.follow=null;sub.peek=0;sub.peekX=null;sub.x=p.x;sub.y=subSafeY(p.x,p.y);sub.vx=sub.vy=0;sub.tx=sub.ox=sub.x;sub.ty=sub.oy=sub.y;sub.state='obs';sub.wait=R(6,15);sub.poi=p;cam.tx=cam.ty=null;cam.vx=cam.vy=0;cam.x=sub.x;cam.y=sub.y;updateCam(0);}
-function subLimits(x){let m=1e9;for(let k=-40;k<=40;k+=4)m=Math.min(m,floorAt(x+k));return [iceAt(x)?16:seaAt(x)+5,m-16];}
+function subLimits(x){let m=1e9;for(let k=-40;k<=40;k+=4)m=Math.min(m,floorAt(x+k));const a=iceAt(x)?16:seaAt(x)+5,b=m-16;return b<a?[(a+b)/2,(a+b)/2]:[a,b];}
 function subSafeY(x,y){const [a,b]=subLimits(x);return clamp(y,a,b);}
 function pickPOI(){
   const opts=[];
@@ -840,7 +840,10 @@ function updateSub(dt){
   if(low&&b<.08){sub.ty=8;sub.state='go';}else if(low)sub.ty=Math.min(sub.ty,70);
   if(sub.state==='obs'){sub.wait-=dt;if(!sub.follow){sub.tx=sub.ox+Math.sin(Date.now()/9000)*24;sub.ty=sub.oy+Math.sin(Date.now()/7000)*8;}
     if(sub.wait<=0&&!sub.userFollow){const p=pickPOI();sub.poi=p;sub.tx=p.x;sub.ty=p.y;sub.follow=p.follow||null;sub.state='go';}}
-  else if(Math.hypot(sub.tx-sub.x,sub.ty-sub.y)<10&&!low){sub.state='obs';sub.wait=WALL?R(14,35):R(35,100);sub.ox=sub.x;sub.oy=sub.y;}
+  else if(!low){sub.goT=(sub.goT||0)+dt;const d0=Math.hypot(clamp(sub.tx,MINX+20,MAXX-20)-sub.x,subSafeY(sub.tx,sub.ty)-sub.y);
+    if(sub.goT>8){if(d0>(sub.goD==null?1e9:sub.goD)-6){sub.stuck=(sub.stuck||0)+1;}else sub.stuck=0;sub.goD=d0;sub.goT=0;}
+    // llegó, o lleva un rato sin acercarse (objetivo inalcanzable): se queda mirando y luego elige otro sitio
+    if(d0<10||sub.stuck>=3){if(sub.stuck>=3){sub.follow=null;sub.userFollow=false;}sub.stuck=0;sub.goD=null;sub.goT=0;sub.state='obs';sub.wait=WALL?R(14,35):R(35,100);sub.ox=sub.x;sub.oy=sub.y;}}
   const spd=(sub.state==='go'?10:4)*(ch?1.7:low?.5:1);
   const ty=subSafeY(sub.tx,sub.ty),dx=sub.tx-sub.x,dy=ty-sub.y,d=Math.hypot(dx,dy)||1;
   const ax=dx/d*spd*Math.min(1,d/20),ay=dy/d*spd*.7*Math.min(1,d/20);
